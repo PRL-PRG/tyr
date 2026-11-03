@@ -8,6 +8,10 @@
 
 open Mlsem.Types
 
+(* Types mentioning a class need the class lattice, frozen here as Rsem's
+   driver would. *)
+let () = Rstt.Classes.build_lattice ()
+
 let types = [
   "int1"; "^int1"; "INT1 \\ ^INT1"; "int"; "INT & ~vec1"; "int1 & ~0L";
   "42."; "^dbl1"; "dbl1"; "dbl & ~dbl1";

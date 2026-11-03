@@ -7,6 +7,10 @@
 open Mlsem.Types
 open Typr.Rval
 
+(* Types mentioning a class need the class lattice, frozen here as Rsem's
+   driver would. *)
+let () = Rstt.Classes.build_lattice ()
+
 let s x = Vec (Chr, [S x])
 let d x = Vec (Dbl, [D x])
 

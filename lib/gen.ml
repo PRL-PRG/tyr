@@ -313,7 +313,7 @@ and gen_classes st classes =
   | { pos ; unk ; _ } ->
     let names = List.map (fun (Classes.L (n, _)) -> n) in
     (* The order of [pos] is the order of the classes, which matters. *)
-    let maybe = names unk |> List.sort String.compare |> List.filter (fun _ -> coin st) in
+    let maybe = unk |> List.sort String.compare |> List.filter (fun _ -> coin st) in
     match names pos @ maybe with
     | [] -> None
     | cls -> Some cls
