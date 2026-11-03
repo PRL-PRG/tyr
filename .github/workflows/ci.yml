@@ -1,0 +1,46 @@
+name: CI
+
+# Builds tyr and runs its tests (`dune runtest test`) with the submodules at
+# the SHAs tyr pins. The toolchain is the Dockerfile's `deps` stage (opam
+# packages and tree-sitter, whose r-parser build takes a while), cached across
+# runs; the tests run in it on the checked-out sources.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Reads the Docker workflow's cache too (scope `buildkit`, the default),
+      # so a toolchain it already built is not built again here.
+      - name: Build the toolchain image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: deps
+          load: true
+          tags: tyr-deps:ci
+          cache-from: |
+            type=gha,scope=tyr-deps
+            type=gha
+          cache-to: type=gha,mode=max,scope=tyr-deps
+
+      # The container runs as `opam`, not as the runner's user.
+      - name: Test
+        run: |
+          chmod -R a+rwX .
+          docker run --rm -v "$PWD":/home/opam/tyr -w /home/opam/tyr tyr-deps:ci \
+            opam exec -- dune runtest test

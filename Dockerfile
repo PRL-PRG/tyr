@@ -4,7 +4,9 @@
 # are the submodules, so `opam install . --deps-only` is never run here -- it
 # would fail (those three are not in the default repository) and, worse, would
 # install an rstt next to the workspace one and shadow it.
-FROM ocaml/opam:ubuntu-22.04-ocaml-5.3 AS builder
+# The `deps` stage is the toolchain alone (opam packages, tree-sitter); CI
+# builds it on its own and runs the tests in it, on the checked-out sources.
+FROM ocaml/opam:ubuntu-22.04-ocaml-5.3 AS deps
 
 USER root
 RUN apt-get update && apt-get install -y \
@@ -36,10 +38,11 @@ RUN opam update --yes && eval $(opam env) && \
     done && \
     # Everything the four projects need that opam knows about, explicitly:
     # rstt-repl wants menhir, rstt zarith, r-c-typing ppx_inline_test and
-    # (through its c-parser) atdgen; rstt's tests want ppx_expect; typr yojson.
+    # (through its c-parser) atdgen; rstt's tests want ppx_expect; typr yojson;
+    # CI's coverage job bisect_ppx.
     opam install --yes --ignore-pin-depends \
       ocamlfind dune cmdliner menhir zarith ppx_inline_test ppx_expect \
-      yojson atdgen atdgen-runtime \
+      yojson atdgen atdgen-runtime bisect_ppx \
       sstt sstt-repl mlsem-types mlsem-common mlsem-system mlsem-lang mlsem
 
 # r-parser provides tree-sitter. Its opam file has empty build/install
@@ -64,6 +67,8 @@ RUN git clone "https://github.com/E-Sh4rk/r-parser.git" r-parser && \
 ENV TREESITTER_INCDIR="/home/opam/r-parser/core/tree-sitter/include"
 ENV TREESITTER_LIBDIR="/home/opam/r-parser/core/tree-sitter/lib"
 ENV LD_LIBRARY_PATH="/home/opam/r-parser/core/tree-sitter/lib"
+
+FROM deps AS builder
 
 # The whole workspace, submodules included (.dockerignore keeps them).
 COPY --chown=opam:opam . /home/opam/typr/

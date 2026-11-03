@@ -1,4 +1,4 @@
-.PHONY: build test clean
+.PHONY: build test coverage clean
 
 SHELL := /bin/bash
 
@@ -22,5 +22,14 @@ build:
 test:
 	@$(call WITH_ENV,dune runtest)
 
+# tyr's own tests, instrumented: raw data in _coverage/, the HTML report in
+# _coverage/html/index.html.
+coverage:
+	@rm -rf _coverage && mkdir -p _coverage
+	@$(call WITH_ENV,BISECT_FILE=$(CURDIR)/_coverage/bisect dune runtest test --instrument-with bisect_ppx --force)
+	@$(call WITH_ENV,bisect-ppx-report html --coverage-path _coverage -o _coverage/html)
+	@$(call WITH_ENV,bisect-ppx-report summary --coverage-path _coverage)
+
 clean:
 	@dune clean
+	@rm -rf _coverage

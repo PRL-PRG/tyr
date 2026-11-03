@@ -1,3 +1,4 @@
 (library
  (name typr)
- (libraries rsem.lang rsem.r rsem.r_types r-c-typing.lib mlsem rstt yojson str unix))
+ (libraries rsem.lang rsem.r rsem.r_types r-c-typing.lib mlsem rstt yojson str unix)
+ (instrumentation (backend bisect_ppx)))

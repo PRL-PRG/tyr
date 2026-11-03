@@ -1,4 +1,5 @@
 (executable
  (public_name typr)
  (name main)
- (libraries typr))
+ (libraries typr)
+ (instrumentation (backend bisect_ppx)))

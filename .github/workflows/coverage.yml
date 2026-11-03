@@ -1,0 +1,61 @@
+name: Coverage
+
+# tyr's tests, instrumented with bisect_ppx, in the same toolchain image as
+# CI; the Cobertura report goes to Codecov (secret CODECOV_TOKEN). Only tyr's
+# own code (lib/, bin/) is instrumented, not the submodules.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build the toolchain image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: deps
+          load: true
+          tags: tyr-deps:ci
+          cache-from: |
+            type=gha,scope=tyr-deps
+            type=gha
+          cache-to: type=gha,mode=max,scope=tyr-deps
+
+      - name: Run the tests with coverage
+        run: |
+          chmod -R a+rwX .
+          docker run --rm -v "$PWD":/home/opam/tyr -w /home/opam/tyr tyr-deps:ci bash -c '
+            set -e
+            mkdir -p _coverage
+            BISECT_FILE="$PWD/_coverage/bisect" \
+              opam exec -- dune runtest test --instrument-with bisect_ppx --force
+            opam exec -- bisect-ppx-report cobertura --coverage-path _coverage coverage.xml
+            opam exec -- bisect-ppx-report html --coverage-path _coverage -o _coverage/html
+            opam exec -- bisect-ppx-report summary --coverage-path _coverage'
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
+
+      - name: Keep the HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: _coverage/html

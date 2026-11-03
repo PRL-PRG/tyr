@@ -5,6 +5,11 @@
   </picture>
 </p>
 
+<p align="center">
+  <a href="https://github.com/PRL-PRG/tyr/actions/workflows/ci.yml"><img src="https://github.com/PRL-PRG/tyr/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://codecov.io/gh/PRL-PRG/tyr"><img src="https://codecov.io/gh/PRL-PRG/tyr/graph/badge.svg" alt="Coverage"></a>
+</p>
+
 tyr is a work-in-progress static type-checker for R.
 For more information, you can take a look at the [poster](docs/poster.pdf) we presented at the conference useR! 2026.
 

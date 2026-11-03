@@ -1,2 +1,4 @@
 _build/
 *.install
+_coverage/
+coverage.xml
