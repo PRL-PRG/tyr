@@ -3,6 +3,10 @@
 
 open Mlsem.Types
 
+(* Types mentioning a class need the class lattice, frozen here as Rsem's
+   driver would. *)
+let () = Rstt.Classes.build_lattice ()
+
 let cases = [
   "3L", {|{"t":"vec","mode":"int","len":1,"na":false,"x":3}|},
   ["int1"; "^int1"; "3L"; "4L"; "dbl1"; "DBL1"; "chr1"; "int"; "null"] ;
