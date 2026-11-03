@@ -1,20 +1,29 @@
-# TypR
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+    <img src="docs/logo.svg" alt="tyr" height="96">
+  </picture>
+</p>
 
-TypR is a work-in-progress static type-checker for R.
+tyr is a work-in-progress static type-checker for R.
 For more information, you can take a look at the [poster](docs/poster.pdf) we presented at the conference useR! 2026.
 
-TypR is not quite ready to be tested on real R codebases yet,
-but you can star this repository if you want to stay updated!
+tyr is not quite ready to be tested on real R codebases yet,
+but you can star this repository if you want to stay updated, and follow its progress on CRAN packages on the [dashboard](https://prl-prg.github.io/r-typing/)!
 
 ## Structure of the project
 
-TypR is composed of several components:
+tyr is composed of several components:
+
+<p align="center">
+  <img src="docs/repo-dependencies.svg" alt="Dependencies between tyr, r-typing, Rsem, NativeSem, MLsem, rstt, sstt and r-parser" width="720">
+</p>
 
 | Component | Description | State of advancement |
 | --- | --- | --- |
 | [tyr](https://github.com/PRL-PRG/tyr) | Orchestrator. Parses R files and native libraries, resolve dependencies, and call the type-checkers. | Not testable yet |
 | [Rsem](https://github.com/E-Sh4rk/Rsem) | Gradual type-checker for R functions. | Not testable yet (only works on basic examples) |
-| [NativeSem](https://github.com/programLyrique/nativesem) | Type inference for library functions in C (support for Fortran is planned). | Tested on several libraries, see [dashboard](https://prl-prg.github.io/r-typing/) |
+| [NativeSem](https://github.com/programLyrique/nativesem) | Type inference for library functions in C (support for Fortran is planned). | Tested on several libraries |
 | [RSTT](https://github.com/E-Sh4rk/rstt) | Set-theoretic type algebra for the R language. Defines the type parser and printer, and the operations on types (e.g. subtyping, substitution, constraint solving). | The main R data-structures are supported (atomic vectors, lists, functions, attributes and classes, etc.) |
 
 Other external dependencies:
@@ -26,9 +35,9 @@ Other external dependencies:
 
 ## Building and running
 
-TypR drives Rsem and NativeSem as libraries, and all four projects -- TypR,
+tyr drives Rsem and NativeSem as libraries, and all four projects -- tyr,
 Rsem, NativeSem and RSTT -- are built together as a single dune workspace. The
-three others are submodules, so the versions TypR is known to work with are
+three others are submodules, so the versions tyr is known to work with are
 pinned here:
 
 ```bash
@@ -47,7 +56,7 @@ something a checkout provides. Everything else comes from the opam switch
 (`opam install . --deps-only`).
 
 ```bash
-# Report the dependencies TypR resolved, without type-checking
+# Report the dependencies tyr resolved, without type-checking
 dune exec typr -- --deps path/to/package
 
 # Type-check the package: native sources first, then the R sources
@@ -98,7 +107,7 @@ the R side has the choice -- NativeSem already types the C identifiers it
 cannot resolve this way.
 
 `--timeout` bounds the type-checking of a *single* function, on both sides and
-through the same code (`lib/timeout.ml`), since TypR drives both checkers
+through the same code (`lib/timeout.ml`), since tyr drives both checkers
 function by function. A function that runs out of time is
 reported and left untyped -- the ones that use it then report an unbound
 variable -- and the rest of the package is checked normally. Without it, one
@@ -120,11 +129,11 @@ pathological function can hold up a whole package indefinitely.
    refers to. `--deps` prints both graphs.
 4. **Native side** — the C functions reachable from those entry points are
    type-checked callees first, one at a time, through
-   `R_c_typing.Runner.infer_def`. TypR schedules them, so a native function is
+   `R_c_typing.Runner.infer_def`. tyr schedules them, so a native function is
    ordered -- and bounded by `--timeout` -- exactly like an R one.
 5. **Linking** (`lib/link.ml`) — a routine's C type is a function over an
    argument *tuple*; the corresponding R binding is a closure over an R
-   argument record. TypR converts the type, binds it under the R-visible
+   argument record. tyr converts the type, binds it under the R-visible
    (prefixed) name, and rewrites `.Call(sym, a, b)` into `sym(a, b)` so that
    the R checker uses it. Only `.Call` is rewritten: `.C` and `.External` do
    not pass their arguments through unchanged, so the C type is not the type of
