@@ -129,7 +129,7 @@ let classes d =
     let pos =
       to_list "class" cls |> List.map (fun c -> Classes.L (to_string "class" c, []))
     in
-    Classes.mk { pos ; neg = [] ; unk = [] ; tail = Classes.NoOther }
+    Classes.mk { pos ; neg = [] ; unk = [] ; tail = Classes.Tail (AbsentOr, []) }
 
 (* Domains, which a description refers to by number. A function that
    accepts any arguments has every type [d -> t], but Rstt only relates the
