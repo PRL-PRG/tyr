@@ -5,7 +5,7 @@
 
 (generate_opam_files true)
 
-(source (github PRL-PRG/typr))
+(source (github PRL-PRG/tyr))
 (authors "Mickael Laurent" "Pierre Donat-Bouillud")
 (maintainers "Mickael Laurent" "Pierre Donat-Bouillud")
 (license MIT)
