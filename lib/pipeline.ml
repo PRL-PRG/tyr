@@ -649,6 +649,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
             Timeout.guard' opts.timeout ~name:d.name ~unchanged (fun () ->
               Runner.infer_def ~internal_scope:d.file
                 ~convention:(StrMap.find_opt d.name conventions)
+                ?arg_types:(Pkg.registered_arg_types pkg d.name)
                 visible opts_native unchanged d.past)
           in
           (* A function that ran out of time is still bound, at its declared C
@@ -694,10 +695,15 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
         with_outcome_hook on_outcome (fun () ->
           Mlsem.Types.PEnv.sequential_handler R_c_typing.Defs.parsed_types_penv run ())))
     in
+    (* A routine registered with the types of its arguments and with no C
+       prototype, such as a Fortran subroutine, has the type they give. *)
     let lookup name =
-      Runner.find_existing_binding name idenv env
-      |> Option.map (fun (_, tys) ->
-          Mlsem.Types.(TyScheme.get tys |> snd |> GTy.ub))
+      match Runner.find_existing_binding name idenv env with
+      | Some (_, tys) -> Some Mlsem.Types.(TyScheme.get tys |> snd |> GTy.ub)
+      | None ->
+        Option.bind (Pkg.registered_arg_types pkg name) (fun arg_types ->
+          try Some (R_c_typing.C_interface.dotC_of_arg_types arg_types)
+          with Failure _ -> None)
     in
     (lookup, penv)
 
@@ -785,10 +791,10 @@ let run opts root =
       files |> List.concat_map (fun f -> f.defs) |> R_deps.natives_of_defs in
     let entry_points =
       StrMap.bindings natives
-      |> List.map (fun (r_name, conv) -> (Pkg.native_symbol ~prefix:pkg.prefix r_name, conv)) in
+      |> List.map (fun (r_name, conv) -> (Pkg.native_symbol pkg conv r_name, conv)) in
     natives |> StrMap.iter (fun r_name conv ->
       emit rep "entry_point"
-        [ ("r_name", R.S r_name) ; ("symbol", R.S (Pkg.native_symbol ~prefix:pkg.prefix r_name)) ;
+        [ ("r_name", R.S r_name) ; ("symbol", R.S (Pkg.native_symbol pkg conv r_name)) ;
           ("convention", R.S (R_c_typing.Package.calling_convention_to_string conv)) ]) ;
     Hashtbl.replace rep.stats "n_ep" (StrMap.cardinal natives) ;
     (* For classifying an unbound R name: the package's own definitions, and
@@ -819,7 +825,7 @@ let run opts root =
            [Link.dotcode_call]), chosen from the kinds of its parameters. *)
         let ctx, known, dotcode =
           StrMap.fold (fun r_name conv (ctx, known, dotcode) ->
-            let c_name = Pkg.native_symbol ~prefix:pkg.prefix r_name in
+            let c_name = Pkg.native_symbol pkg conv r_name in
             let native = native_ty c_name in
             let pp_ty ty = R.one_line Mlsem.Types.Ty.pp ty in
             match conv with

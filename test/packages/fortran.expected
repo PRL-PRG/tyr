@@ -1,0 +1,44 @@
+
+===== Native code =====
+
+.C(count_): [DBL, INT | LGL, INT | LGL] --> c_void
+
+.C(dist_): [DBL, INT | LGL] --> c_void
+
+vec_len: ([null] -> 0L) & ([any_sexp] -> ^INT1) & ([(externalptr | vec1 | arrow) | sym] -> 1L)
+
+
+===== R code =====
+
+
+===== prelude prelude/base.R =====
+F_count: list(double*, int*, int*)
+
+F_pkg_len: ((x1: (externalptr | vec1 | arrow) | sym) -> 1L) & ((x1: any_sexp)
+           -> ^INT1) & ((x1: null) -> 0L)
+
+F_scale: list(double*, int* (INTSXP), double*, int* (LGLSXP))
+
+dist: list(double*, int*)
+
+
+===== packages/fortran/R/fortran.R =====
+scale: (((x: vec | null, a: vec | null) -> DBL<>) & ((x: vec1, a: vec | null) ->
+ DBL1<>))<> with {  }
+
+scaled_ok: ((x: vec | null) -> LGL1<>)<> with {  }
+
+wrong_flag: Untypeable: untypeable encoding
+Line 10, characters 2-56
+application of .Fortran.F_scale[4] failed
+argument is of type @(0L<> with {  })
+
+count: ((x: vec | null) -> INT<>)<> with {  }
+
+count_lgl: ((x: vec | null) -> LGL1<>)<> with {  }
+
+dist: (((x: vec | null) -> DBL<>) & ((x: vec1) -> DBL1<>))<> with {  }
+
+len: (((x: (externalptr | vec1 | arrow) | sym) -> 1L) & ((x: any_sexp) -> ^INT1)
+ & ((x: null) -> 0L))<> with {  }
+

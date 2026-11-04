@@ -83,19 +83,33 @@ let is_fun_ty ty = Ty.leq ty fun_ty && not (Ty.is_empty ty)
    call follows from the kinds of pointers the routine takes, whatever its body
    does, and the calls are rewritten into lists of applications of helpers,
    one per argument (cf. [dotcode_call]). *)
-type dotcode_kind = Int | Dbl | Chr | Raw
+type dotcode_kind =
+  | Int | Dbl | Chr | Raw
+  | Integer | Logical     (* [int*] registered as [INTSXP], or as [LGLSXP] *)
 
-(* The C type of each kind, as [C_interface.dotC_typeof] translates it. *)
-let dotcode_ctypes =
+(* The R type of each kind, as [C_interface.dotC_typeof] translates the C
+   type of a parameter, or [C_interface.dotC_of_arg_types] its registered
+   type. *)
+let dotcode_kind_tys = lazy (
   let module A = R_c_typing.Ast in
-  [ Int, A.Ptr A.Int ; Dbl, A.Ptr A.Float ; Chr, A.Ptr (A.Ptr A.Char) ; Raw, A.Ptr A.Char ]
+  let module P = R_c_typing.Package in
+  let of_ctype ct = R_c_typing.C_interface.dotC_typeof A.DeclMap.empty ct in
+  let of_arg_type t =
+    match Arrow.dnf (R_c_typing.C_interface.dotC_of_arg_types [ t ]) with
+    | [ [ (dom, _) ] ] -> (match Tuple.decompose dom with
+        | [ (_, [ [ ty ] ]) ], _ -> ty
+        | _ -> assert false)
+    | _ -> assert false in
+  [ Int, of_ctype (A.Ptr A.Int) ; Dbl, of_ctype (A.Ptr A.Float) ;
+    Chr, of_ctype (A.Ptr (A.Ptr A.Char)) ; Raw, of_ctype (A.Ptr A.Char) ;
+    Integer, of_arg_type P.Integer ; Logical, of_arg_type P.Logical ])
 
 let string_of_dotcode_kind = function
   | Int -> "int*" | Dbl -> "double*" | Chr -> "char**" | Raw -> "unsigned char*"
+  | Integer -> "int* (INTSXP)" | Logical -> "int* (LGLSXP)"
 
 let kind_of_dotcode_ty ty =
-  dotcode_ctypes |> List.find_map (fun (k, ct) ->
-    let kty = R_c_typing.C_interface.dotC_typeof R_c_typing.Ast.DeclMap.empty ct in
+  Lazy.force dotcode_kind_tys |> List.find_map (fun (k, kty) ->
     if Ty.leq ty kty && Ty.leq kty ty then Some k else None)
 
 (* The kinds of the parameters of a routine typed for [.C], i.e. by
@@ -121,6 +135,7 @@ let param_helper d i = Printf.sprintf "%s[%d]" d.name (i + 1)
 
 let modes = function
   | Int -> [ "INT" ; "LGL" ] | Dbl -> [ "DBL" ] | Chr -> [ "CHR" ] | Raw -> [ "RAW" ]
+  | Integer -> [ "INT" ] | Logical -> [ "LGL" ]
 
 (* [param_helper d i] gives back its argument with its attributes, its storage
    mode and its length, but with any value. A logical goes to an [int*] and

@@ -49,6 +49,25 @@
  (action
   (diff packages/praise.expected praise.output)))
 
+; Routines called through .Fortran, and the registration tables: types arrays,
+; renamed routines.
+(rule
+ (alias runtest)
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  prelude/base.R
+  (source_tree packages/fortran))
+ (action
+  (with-stdout-to
+   fortran.output
+   (run %{exe:../bin/main.exe} --prelude prelude/base.R packages/fortran))))
+
+(rule
+ (alias runtest)
+ (deps packages/fortran.expected fortran.output)
+ (action
+  (diff packages/fortran.expected fortran.output)))
+
 ; Routines called through .C: each call is typed as the list of its arguments
 ; (cf. [Link.dotcode_call]).
 (rule

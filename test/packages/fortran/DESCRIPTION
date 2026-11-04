@@ -1,0 +1,5 @@
+Package: fortran
+Version: 0.1
+Title: Routines Called Through .Fortran
+Description: Test package for .Fortran and for the registration tables.
+License: GPL-2

@@ -1,0 +1,1 @@
+useDynLib(fortran, .registration = TRUE, .fixes = "F_")
