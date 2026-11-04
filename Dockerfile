@@ -39,7 +39,11 @@ RUN opam update --yes && eval $(opam env) && \
     done && \
     # bisect_ppx's last release (2.8.3) wants cmdliner < 2, which the r-parser
     # build below upgrades to 2.x, removing it; its master accepts cmdliner 2.
+    # But neither builds with ppxlib >= 0.36 (its AST moved to OCaml 5.2's,
+    # where Pexp_function takes 3 arguments), and master's opam file does not
+    # say so: ppxlib is pinned, so that no later opam call upgrades it.
     opam pin add bisect_ppx "git+https://github.com/aantron/bisect_ppx.git#${BISECT_PPX_REF}" --yes --no-action && \
+    opam pin add ppxlib 0.35.0 --yes --no-action && \
     # Everything the four projects need that opam knows about, explicitly:
     # rstt-repl wants menhir, rstt zarith, r-c-typing ppx_inline_test and
     # (through its c-parser) atdgen; rstt's tests want ppx_expect; typr yojson;
