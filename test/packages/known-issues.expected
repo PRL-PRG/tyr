@@ -53,7 +53,7 @@ for_nested: (() -> DBL1 | INT1)<> with {  }
 
 cache: {  }
 
-typr: skipping definition fill_cache (Invalid_argument("Cannot assign to an immutable variable."))
+tyr: skipping definition fill_cache (Invalid_argument("Cannot assign to an immutable variable."))
 
 acache: {  } | { a: dbl1 }
 
@@ -145,7 +145,7 @@ given: ((a: 'a & dbl1) --> DBL1) & ((a: 'a & ((DBL | v('I705)) & dbl)) --> dbl &
 
 cb_sig: (a: dbl1) -> dbl1
 
-typr: skipping definition set_cb_sig (Invalid_argument("Cannot assign to an immutable variable."))
+tyr: skipping definition set_cb_sig (Invalid_argument("Cannot assign to an immutable variable."))
 
 holder: { reset: (() -> null)<> with {  } }
 

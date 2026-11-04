@@ -1,7 +1,7 @@
 ; ===== Pipeline smoke test =====
 ; It must order the R files by dependency, type the C sources, and use the
 ; resulting types on the R side.
-; The `.ty` files are NativeSem's; `typr/types` copies them, so that the
+; The `.ty` files are NativeSem's; `tyr/types` copies them, so that the
 ; R-C-API signatures are found from the build directory as well.
 (rule
  (alias runtest)
@@ -23,7 +23,7 @@
 ; Real CRAN packages (and one synthetic package of minimal reproductions),
 ; type-checked against the base R signatures of `prelude/base.R`. See
 ; ../docs/r-experiment-report.md for what each of them exercises.
-; The prelude is Rsem's `sigs/base.R` (the one typr installs, cf.
+; The prelude is Rsem's `sigs/base.R` (the one tyr installs, cf.
 ; ../prelude/dune); it is copied here so that the rules below, and the
 ; `===== prelude prelude/base.R` banner in the five .expected files, are
 ; unchanged.

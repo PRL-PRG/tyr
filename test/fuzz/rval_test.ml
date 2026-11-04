@@ -5,7 +5,7 @@
    checks that R's descriptions type the values as OCaml's do. *)
 
 open Mlsem.Types
-open Typr.Rval
+open Tyr.Rval
 
 (* Types mentioning a class need the class lattice, frozen here as Rsem's
    driver would. *)
@@ -42,7 +42,7 @@ let print_values () =
   values |> List.iter (fun v ->
     let vt = to_valty v in
     Printf.printf "%s\n  : %s%s\n" (to_r v)
-      (Typr.Report.one_line Ty.pp vt.ty) (if vt.exact then "" else "  (inexact)"))
+      (Tyr.Report.one_line Ty.pp vt.ty) (if vt.exact then "" else "  (inexact)"))
 
 let print_cases () =
   values |> List.iter (fun v ->
@@ -54,7 +54,7 @@ let compare_descs descs =
     Printf.printf "%d values, %d descriptions\n" (List.length values) (List.length descs)
   else begin
     let bad = List.combine values descs |> List.filter (fun (v, desc) ->
-      let ours = to_valty v and theirs = Typr.Valty.of_json (Yojson.Safe.from_string desc) in
+      let ours = to_valty v and theirs = Tyr.Valty.of_json (Yojson.Safe.from_string desc) in
       if Ty.equiv ours.ty theirs.ty && ours.exact = theirs.exact then false
       else begin
         Printf.printf "%s\n  OCaml: %s\n  R:     %s\n" (to_r v)

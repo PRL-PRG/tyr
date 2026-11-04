@@ -191,14 +191,14 @@ let parse_r rep role path =
         ("parsed", Report.B parsed) ; ("parse_error", opt_s error) ; ("n_defs", Report.I n_defs) ] in
   match Driver.parse path with
   | None ->
-    Format.printf "typr: could not parse %s@.@." path ;
+    Format.printf "tyr: could not parse %s@.@." path ;
     file ~parsed:false ~error:"parse error" 0 ; None
   | Some (prog, extras) ->
     let defs = R_deps.defs_of_program prog in
     file ~parsed:true (List.length defs) ;
     Some { path ; prog ; extras ; defs }
   | exception e ->
-    Format.printf "typr: could not parse %s (%s)@.@." path (Printexc.to_string e) ;
+    Format.printf "tyr: could not parse %s (%s)@.@." path (Printexc.to_string e) ;
     file ~parsed:false ~error:(Printexc.to_string e) 0 ; None
 
 (* Order the R files so that a file comes after the files defining the names it
@@ -298,7 +298,7 @@ let order_defs items =
 let process_r_file ?timeout rep ~role ~defined ~native_syms ctx f =
   let module R = Report in
   let warn what name exn =
-    Format.printf "typr: skipping %s %s (%s)@.@." what name (Printexc.to_string exn) in
+    Format.printf "tyr: skipping %s %s (%s)@.@." what name (Printexc.to_string exn) in
   let extra_name (`Comment (_, (_, str))) =
     let str = String.trim str in
     if String.length str <= 40 then str else String.sub str 0 40 ^ "..." in

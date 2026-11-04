@@ -62,32 +62,32 @@ something a checkout provides. Everything else comes from the opam switch
 
 ```bash
 # Report the dependencies tyr resolved, without type-checking
-dune exec typr -- --deps path/to/package
+dune exec tyr -- --deps path/to/package
 
 # Type-check the package: native sources first, then the R sources
-dune exec typr -- path/to/package
+dune exec tyr -- path/to/package
 
 # Signatures of the functions the package builds upon (base R, imports).
 # Those of base R are Rsem's (Rsem/sigs/base.R), copied to _build/default/prelude/
-dune exec typr -- --prelude _build/default/prelude/base.R path/to/package
+dune exec tyr -- --prelude _build/default/prelude/base.R path/to/package
 
 # Give up on any function that takes longer than 10s, and carry on
-dune exec typr -- --timeout 10 path/to/package
+dune exec tyr -- --timeout 10 path/to/package
 
 # Tolerate the names the prelude does not declare, instead of reporting them
-dune exec typr -- --gradual path/to/package
+dune exec tyr -- --gradual path/to/package
 
 # Also write a machine-readable account of the run, one JSON record per line
-dune exec typr -- --report run.jsonl path/to/package
+dune exec tyr -- --report run.jsonl path/to/package
 
 # NativeSem options passed through: bind a C function that fails to type at
 # its declared signature; print its per-function timings; dump its call graph
-dune exec typr -- --fallback-c-signature --log-times --call-graph cg.dot path/to/package
+dune exec tyr -- --fallback-c-signature --log-times --call-graph cg.dot path/to/package
 
 # The same fallback, but not for the functions whose parameters and result are
 # all SEXP (their signature only says they take and return R values); `all` is
 # the default, `none` turns the fallback off
-dune exec typr -- --fallback-mode except-all-sexp path/to/package
+dune exec tyr -- --fallback-mode except-all-sexp path/to/package
 ```
 
 `--report FILE` is what the [r-typing](https://github.com/PRL-PRG/r-typing)

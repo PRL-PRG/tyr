@@ -31,13 +31,13 @@ let run () =
     let fty = Lang.Defs.ty s in
     Printf.printf "%s%s\n" s (if positional then "  (positional)" else "") ;
     for _ = 1 to n do
-      match Typr.Gen.gen_call ~positional st fty with
+      match Tyr.Gen.gen_call ~positional st fty with
       | None -> print_endline "  (none)"
       | Some { subst ; call ; expected } ->
         let dom = Rstt.Subst.apply subst fty |> Rstt.Attr.proj_content |> Arrow.domain in
-        let ok = Ty.leq (Typr.Gen.call_type call) dom in
-        Printf.printf "  %s%s\n    -> %s\n" (Typr.Gen.call_to_r call)
-          (if ok then "" else "  NOT IN DOMAIN") (Typr.Report.one_line Ty.pp expected)
+        let ok = Ty.leq (Tyr.Gen.call_type call) dom in
+        Printf.printf "  %s%s\n    -> %s\n" (Tyr.Gen.call_to_r call)
+          (if ok then "" else "  NOT IN DOMAIN") (Tyr.Report.one_line Ty.pp expected)
     done)
 
 (* Calls drawn from each arrow of overloaded signatures: each must lie in
@@ -52,14 +52,14 @@ let run_per_arrow () =
     let st = Random.State.make [| 100 + i |] in
     let fty = Lang.Defs.ty s in
     Printf.printf "%s  (per arrow)\n" s ;
-    Typr.Gen.arrows fty |> List.iteri (fun k (dom, _) ->
+    Tyr.Gen.arrows fty |> List.iteri (fun k (dom, _) ->
       for _ = 1 to 2 do
-        match Typr.Gen.gen_call ~arrow:k st fty with
+        match Tyr.Gen.gen_call ~arrow:k st fty with
         | None -> Printf.printf "  arrow %d: (none)\n" k
         | Some { subst ; call ; expected } ->
-          let ok = Ty.leq (Typr.Gen.call_type call) (Rstt.Subst.apply subst dom) in
-          Printf.printf "  arrow %d: %s%s\n    -> %s\n" k (Typr.Gen.call_to_r call)
-            (if ok then "" else "  NOT IN ITS ARROW") (Typr.Report.one_line Ty.pp expected)
+          let ok = Ty.leq (Tyr.Gen.call_type call) (Rstt.Subst.apply subst dom) in
+          Printf.printf "  arrow %d: %s%s\n    -> %s\n" k (Tyr.Gen.call_to_r call)
+            (if ok then "" else "  NOT IN ITS ARROW") (Tyr.Report.one_line Ty.pp expected)
       done))
 
 (* The calls drawn for a type must not depend on the internal ids of its
@@ -77,9 +77,9 @@ let draws sigs =
     let fty = Lang.Defs.ty s in
     s, List.mapi (fun k _ ->
       let st = Random.State.make [| Hashtbl.hash s ; k |] in
-      List.init 3 (fun _ -> Typr.Gen.gen_call ~arrow:k st fty
-                            |> Option.map (fun (c : Typr.Gen.sample) -> Typr.Gen.call_to_r c.call)))
-      (Typr.Gen.arrows fty)) sigs
+      List.init 3 (fun _ -> Tyr.Gen.gen_call ~arrow:k st fty
+                            |> Option.map (fun (c : Tyr.Gen.sample) -> Tyr.Gen.call_to_r c.call)))
+      (Tyr.Gen.arrows fty)) sigs
 
 let run_canonical () =
   let forward = draws canonical and backward = draws (List.rev canonical) in

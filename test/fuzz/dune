@@ -4,22 +4,22 @@
 (test
  (name valty_test)
  (modules valty_test)
- (libraries typr rsem.lang mlsem rstt yojson))
+ (libraries tyr rsem.lang mlsem rstt yojson))
 
 (test
  (name rval_test)
  (modules rval_test)
- (libraries typr rsem.lang mlsem rstt yojson))
+ (libraries tyr rsem.lang mlsem rstt yojson))
 
 (test
  (name gen_test)
  (modules gen_test)
- (libraries typr rsem.lang mlsem rstt))
+ (libraries tyr rsem.lang mlsem rstt))
 
 (test
  (name call_test)
  (modules call_test)
- (libraries typr rsem.lang mlsem rstt))
+ (libraries tyr rsem.lang mlsem rstt))
 
 ; The tests that need R (with jsonlite) are in the fuzz-r alias, out of the
 ; default runtest: `dune build @fuzz-r`.
@@ -63,7 +63,7 @@
 (test
  (name mutate_test)
  (modules mutate_test)
- (libraries typr rsem.lang mlsem rstt yojson))
+ (libraries tyr rsem.lang mlsem rstt yojson))
 
 (rule
  (alias fuzz-r)

@@ -1,5 +1,5 @@
 let usage =
-  "typr [--deps] [--gradual] [--debug] [--timeout SECONDS] [--prelude FILE]\n\
+  "tyr [--deps] [--gradual] [--debug] [--timeout SECONDS] [--prelude FILE]\n\
   \      [--report FILE] [--fallback-c-signature] [--fallback-mode MODE]\n\
   \      [--lambda-rec SECONDS] [--log-times]\n\
   \      [--call-graph FILE]\n\
@@ -77,13 +77,13 @@ let () =
   match !root with
   | None -> prerr_endline usage ; exit 1
   | Some root when not (Sys.file_exists root && Sys.is_directory root) ->
-    Printf.eprintf "typr: not a package directory: %s\n" root ; exit 1
+    Printf.eprintf "tyr: not a package directory: %s\n" root ; exit 1
   | Some _ when !gradual && !fuzz_runner <> None ->
-    prerr_endline "typr: --fuzz-runner cannot be used with --gradual (dyn has no values to draw)" ;
+    prerr_endline "tyr: --fuzz-runner cannot be used with --gradual (dyn has no values to draw)" ;
     exit 2
   | Some root ->
     let fuzz = !fuzz_runner |> Option.map (fun runner ->
-      { Typr.Fuzz.runner ; harness = !fuzz_harness ; samples = !fuzz_samples ;
+      { Tyr.Fuzz.runner ; harness = !fuzz_harness ; samples = !fuzz_samples ;
         seed = !fuzz_seed ; dir = !fuzz_dir ; call_timeout = !fuzz_call_timeout }) in
     (* [--fallback-mode] picks the functions the fallback applies to, and
        turns it on unless it is [none]. *)
@@ -94,11 +94,11 @@ let () =
       | Some _ -> true, R_c_typing.Runner.All
       | None -> !fallback, R_c_typing.Runner.All in
     let native =
-      { Typr.Pipeline.default_native_options with
+      { Tyr.Pipeline.default_native_options with
         debug = !debug ; fallback_c_signature = fallback_on ; log_times = !log_times ;
         lambda_rec = !lambda_rec ;
         call_graph = !call_graph } in
-    Typr.Pipeline.run
+    Tyr.Pipeline.run
       { native ; prelude = !prelude ; include_dirs = !include_dirs ;
         timeout = !timeout ; gradual = !gradual ; deps_only = !deps_only ;
         report = !report ; fuzz ; fallback_mode } root

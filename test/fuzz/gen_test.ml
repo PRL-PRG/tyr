@@ -34,7 +34,7 @@ let draws () =
     let st = Random.State.make [| i |] in
     let ty = Lang.Defs.ty s in
     s, List.init n (fun _ ->
-      Typr.Gen.sample_poly st ty
+      Tyr.Gen.sample_poly st ty
       |> Option.map (fun (subst, v) -> Rstt.Subst.apply subst ty, v)))
 
 let print_draws () =
@@ -43,15 +43,15 @@ let print_draws () =
     vs |> List.iter (function
       | None -> print_endline "  (none)"
       | Some (ty, v) ->
-        let ok = Ty.leq (Typr.Rval.to_valty v).ty ty in
-        Printf.printf "  %s%s\n" (Typr.Rval.to_r v) (if ok then "" else "  NOT IN TYPE")))
+        let ok = Ty.leq (Tyr.Rval.to_valty v).ty ty in
+        Printf.printf "  %s%s\n" (Tyr.Rval.to_r v) (if ok then "" else "  NOT IN TYPE")))
 
 let values () =
   draws () |> List.concat_map (fun (s, vs) -> List.filter_map (Option.map (fun d -> s, d)) vs)
 
 let print_cases () =
   values () |> List.iter (fun (_, (_, v)) ->
-    print_endline (Yojson.Safe.to_string (`Assoc ["src", `String (Typr.Rval.to_r v)])))
+    print_endline (Yojson.Safe.to_string (`Assoc ["src", `String (Tyr.Rval.to_r v)])))
 
 let compare_descs descs =
   let descs = In_channel.with_open_text descs In_channel.input_lines in
@@ -60,9 +60,9 @@ let compare_descs descs =
     Printf.printf "%d values, %d descriptions\n" (List.length values) (List.length descs)
   else begin
     let bad = List.combine values descs |> List.filter (fun ((s, (ty, v)), desc) ->
-      match Typr.Valty.(mem (of_json (Yojson.Safe.from_string desc)) ty) with
+      match Tyr.Valty.(mem (of_json (Yojson.Safe.from_string desc)) ty) with
       | In | Unknown -> false
-      | Out -> Printf.printf "%s: %s\n  R: %s\n" s (Typr.Rval.to_r v) desc ; true) in
+      | Out -> Printf.printf "%s: %s\n  R: %s\n" s (Tyr.Rval.to_r v) desc ; true) in
     Printf.printf "%d values, %d out of their type in R\n" (List.length values) (List.length bad)
   end
 

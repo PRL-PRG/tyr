@@ -1,11 +1,11 @@
 ; The base R signatures TypR type-checks packages against live with Rsem.
 ; Copying them here makes them reachable from the build tree, and installs them
-; so that the image (and anyone with `typr` in their switch) can point
+; so that the image (and anyone with `tyr` in their switch) can point
 ; --prelude at them.
 (copy_files
  (files %{project_root}/Rsem/sigs/*.R))
 
 (install
  (section share)
- (package typr)
+ (package tyr)
  (files base.R))

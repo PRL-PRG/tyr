@@ -52,16 +52,16 @@ let cases = [
   ["lang"; "list"; "null"] ;
 ]
 
-let verdict = function Typr.Valty.In -> "in" | Out -> "out" | Unknown -> "unknown"
+let verdict = function Tyr.Valty.In -> "in" | Out -> "out" | Unknown -> "unknown"
 
 let run () =
   cases |> List.iter (fun (label, desc, tys) ->
-    let v = Typr.Valty.of_json (Yojson.Safe.from_string desc) in
+    let v = Tyr.Valty.of_json (Yojson.Safe.from_string desc) in
     Printf.printf "%s : %s%s\n" label
-      (Typr.Report.one_line Ty.pp v.ty) (if v.exact then "" else "  (inexact)") ;
+      (Tyr.Report.one_line Ty.pp v.ty) (if v.exact then "" else "  (inexact)") ;
     tys |> List.iter (fun s ->
       let ty = Lang.Defs.ty s in
-      Printf.printf "  %-26s %s\n" s (verdict (Typr.Valty.mem v ty))))
+      Printf.printf "  %-26s %s\n" s (verdict (Tyr.Valty.mem v ty))))
 
 let () =
   Lang.Driver.setup () ;

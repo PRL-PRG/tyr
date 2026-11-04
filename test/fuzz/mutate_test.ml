@@ -29,20 +29,20 @@ let draws () =
     let st = Random.State.make [| i |] in
     let fty = Lang.Defs.ty s in
     s, fty, List.init calls (fun _ ->
-      Typr.Gen.gen_call st fty
-      |> Option.map (fun (c : Typr.Gen.sample) -> c.call, Typr.Mutate.mutants st fty c.call)))
+      Tyr.Gen.gen_call st fty
+      |> Option.map (fun (c : Tyr.Gen.sample) -> c.call, Tyr.Mutate.mutants st fty c.call)))
 
 let print_draws () =
   draws () |> List.iter (fun (s, fty, cs) ->
     print_endline s ;
-    let dom = Typr.Gen.top_instance (Rstt.Attr.proj_content fty) |> Arrow.domain in
+    let dom = Tyr.Gen.top_instance (Rstt.Attr.proj_content fty) |> Arrow.domain in
     cs |> List.iter (function
       | None -> print_endline "  (none)"
       | Some (c, ms) ->
-        Printf.printf "  %s\n" (Typr.Gen.call_to_r c) ;
-        ms |> List.iter (fun (m : Typr.Mutate.mutant) ->
-          let inside = Ty.leq (Typr.Gen.call_type m.call) dom in
-          Printf.printf "    %s %s: %s%s\n" m.param m.op (Typr.Gen.call_to_r m.call)
+        Printf.printf "  %s\n" (Tyr.Gen.call_to_r c) ;
+        ms |> List.iter (fun (m : Tyr.Mutate.mutant) ->
+          let inside = Ty.leq (Tyr.Gen.call_type m.call) dom in
+          Printf.printf "    %s %s: %s%s\n" m.param m.op (Tyr.Gen.call_to_r m.call)
             (if inside then "  IN DOMAIN" else ""))))
 
 (* The changed arguments. *)
@@ -50,16 +50,16 @@ let values () =
   draws () |> List.concat_map (fun (_, _, cs) ->
     cs |> List.concat_map (function
       | None -> []
-      | Some (_, ms) -> ms |> List.filter_map (fun (m : Typr.Mutate.mutant) ->
+      | Some (_, ms) -> ms |> List.filter_map (fun (m : Tyr.Mutate.mutant) ->
         let args = m.call.pos @ List.map snd m.call.named in
         Option.map (List.nth args) m.arg)))
 
 let print_cases () =
   values () |> List.iter (fun v ->
-    print_endline (Yojson.Safe.to_string (`Assoc ["src", `String (Typr.Rval.to_r v)])))
+    print_endline (Yojson.Safe.to_string (`Assoc ["src", `String (Tyr.Rval.to_r v)])))
 
 (* What R sees of a value: not the domains of the fuzzer's closures. *)
-let rec seen : Typr.Rval.t -> Typr.Rval.t = function
+let rec seen : Tyr.Rval.t -> Tyr.Rval.t = function
   | Fun f -> Fun { f with doms = [] }
   | List l -> List (List.map (fun (n, v) -> n, seen v) l)
   | With w -> With { w with v = seen w.v ; attrs = List.map (fun (n, a) -> n, seen a) w.attrs }
@@ -74,10 +74,10 @@ let compare_descs descs =
     Printf.printf "%d values, %d descriptions\n" (List.length values) (List.length descs)
   else begin
     let bad = List.combine values descs |> List.filter (fun (v, desc) ->
-      let r = Typr.Valty.of_json (Yojson.Safe.from_string desc) in
-      let ocaml = Typr.Rval.to_valty (seen v) in
+      let r = Tyr.Valty.of_json (Yojson.Safe.from_string desc) in
+      let ocaml = Tyr.Rval.to_valty (seen v) in
       if Ty.equiv r.ty ocaml.ty && r.exact = ocaml.exact then false
-      else (Printf.printf "%s\n  R: %s\n" (Typr.Rval.to_r v) desc ; true)) in
+      else (Printf.printf "%s\n  R: %s\n" (Tyr.Rval.to_r v) desc ; true)) in
     Printf.printf "%d values, %d disagreements\n" (List.length values) (List.length bad)
   end
 
