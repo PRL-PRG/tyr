@@ -26,9 +26,9 @@ tyr is composed of several components:
 
 | Component | Description | State of advancement |
 | --- | --- | --- |
-| [tyr](https://github.com/PRL-PRG/tyr) | Orchestrator. Parses R files and native libraries, resolve dependencies, and call the type-checkers. | Not testable yet |
-| [Rsem](https://github.com/E-Sh4rk/Rsem) | Gradual type-checker for R functions. | Not testable yet (only works on basic examples) |
-| [NativeSem](https://github.com/programLyrique/nativesem) | Type inference for library functions in C (support for Fortran is planned). | Tested on several libraries |
+| [tyr](https://github.com/PRL-PRG/tyr) | Orchestrator. Parses R files and native libraries, resolve dependencies, and call the type-checkers. | Tested on 15 CRAN packages |
+| [Rsem](https://github.com/E-Sh4rk/Rsem) | Gradual type-checker for R functions. | Tested on the R code of 15 CRAN packages |
+| [NativeSem](https://github.com/programLyrique/nativesem) | Type inference for library functions in C (support for Fortran is planned). | Tested on the C code of 9 CRAN packages |
 | [RSTT](https://github.com/E-Sh4rk/rstt) | Set-theoretic type algebra for the R language. Defines the type parser and printer, and the operations on types (e.g. subtyping, substitution, constraint solving). | The main R data-structures are supported (atomic vectors, lists, functions, attributes and classes, etc.) |
 
 Other external dependencies:
