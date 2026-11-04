@@ -16,8 +16,8 @@ count_chars: (((x: vec) -> INT<>) & ((x: vec1) -> INT1<>))<> with {  }
 
 first_char: (((x: vec) -> CHR<>) & ((x: vec1) -> CHR1<>))<> with {  }
 
-checked: ∀'a. (((n: DBL | (DBL | INT) & v('a)) -> DBL | dbl & v('a)) & ((n: DBL1 |
- INT1) -> dbl1) & ((n: ~(DBL | INT)) -> empty))<> with {  }
+checked: (((n: DBL | INT) -> DBL | INT) & ((n: DBL1 | INT1) -> DBL1) & ((n: ~(DBL |
+ INT)) -> empty))<> with {  }
 
 first_of: ∀'a. ((x: 'a, y: any) -> 'a)<> with {  }
 
@@ -31,6 +31,6 @@ count_chars: ok 8, rejected 3, accepted 2
   accepted: list(list(c(FALSE, FALSE, NA, NA, TRUE))) x wrap, returned 29L<> with {  }
 first_char: ok 8, rejected 3, accepted 1
   accepted: list("x" = list()) x kind:list, returned (CHR & ~vec1)<> with {  }
-checked: ok 8, rejected 5
+checked: ok 8, rejected 3
 first_of: ok 8, rejected 3, accepted 3
   accepted: list(NULL) x drop, returned null
