@@ -13,7 +13,7 @@
 tyr is a work-in-progress static type-checker for R.
 For more information, you can take a look at the [poster](docs/poster.pdf) we presented at the conference useR! 2026.
 
-tyr is not quite ready to be tested on real R codebases yet,
+tyr is already tested on real R codebases. It is in the early stages, 
 but you can star this repository if you want to stay updated, and follow its progress on CRAN packages on the [dashboard](https://prl-prg.github.io/r-typing/)!
 
 ## Structure of the project

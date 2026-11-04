@@ -28,6 +28,7 @@ ENV PATH="/home/opam/.cargo/bin:${PATH}"
 # Dockerfile: TypR builds NativeSem and Rsem in one process, so they must agree.
 ARG SSTT_REF=d295f27f4aa023c20b6c5b8971151e5b61cb1863
 ARG MLSEM_REF=f40401b5ef76a97191dac0994dddf06fd07ff1e4
+ARG BISECT_PPX_REF=2d8dffbbfc0c431a37319d4d9a143836c9ec542e
 
 RUN opam update --yes && eval $(opam env) && \
     opam pin add sstt      "git+https://github.com/E-Sh4rk/sstt.git#${SSTT_REF}" --yes --no-action --ignore-pin-depends && \
@@ -36,6 +37,9 @@ RUN opam update --yes && eval $(opam env) && \
     for pkg in mlsem-types mlsem-common mlsem-system mlsem-lang mlsem; do \
       opam pin add "$pkg" "git+https://github.com/E-Sh4rk/MLsem.git#${MLSEM_REF}" --yes --no-action --ignore-pin-depends; \
     done && \
+    # bisect_ppx's last release (2.8.3) wants cmdliner < 2, which the r-parser
+    # build below upgrades to 2.x, removing it; its master accepts cmdliner 2.
+    opam pin add bisect_ppx "git+https://github.com/aantron/bisect_ppx.git#${BISECT_PPX_REF}" --yes --no-action && \
     # Everything the four projects need that opam knows about, explicitly:
     # rstt-repl wants menhir, rstt zarith, r-c-typing ppx_inline_test and
     # (through its c-parser) atdgen; rstt's tests want ppx_expect; typr yojson;
@@ -62,7 +66,9 @@ RUN git clone "https://github.com/E-Sh4rk/r-parser.git" r-parser && \
     opam exec -- dune install --prefix=$(opam var prefix) && \
     # Fail here, loudly, rather than at link time.
     test -f "$(opam var lib)/tree-sitter/dune-package" && \
-    opam exec -- ocamlfind list | grep -q "tree-sitter.run"
+    opam exec -- ocamlfind list | grep -q "tree-sitter.run" && \
+    # ... and that the opam solving above left bisect_ppx in place.
+    opam exec -- ocamlfind list | grep -q "^bisect_ppx "
 
 ENV TREESITTER_INCDIR="/home/opam/r-parser/core/tree-sitter/include"
 ENV TREESITTER_LIBDIR="/home/opam/r-parser/core/tree-sitter/lib"
