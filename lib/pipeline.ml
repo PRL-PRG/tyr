@@ -814,43 +814,80 @@ let run opts root =
             Driver.initial_ctx (List.filter_map (parse_r rep "prelude") opts.prelude)
         in
         (* Bind each native symbol under its R-visible name, with its C type
-           adapted to an R calling convention. *)
-        let ctx, known =
-          StrMap.fold (fun r_name _conv (ctx, known) ->
+           adapted to an R calling convention. A routine called through [.C]
+           or [.Fortran] is bound to helpers instead, one per parameter (cf.
+           [Link.dotcode_call]), chosen from the kinds of its parameters. *)
+        let ctx, known, dotcode =
+          StrMap.fold (fun r_name conv (ctx, known, dotcode) ->
             let c_name = Pkg.native_symbol ~prefix:pkg.prefix r_name in
             let native = native_ty c_name in
-            let result =
-              match native with
-              | None -> Error Link.No_native_type
-              | Some ty -> Link.r_type_of_native' ty in
             let pp_ty ty = R.one_line Mlsem.Types.Ty.pp ty in
-            emit rep "link"
-              [ ("r_name", R.S r_name) ; ("symbol", R.S c_name) ;
-                ("native_typed", R.B (native <> None)) ;
-                ("native_type", opt_s (Option.map pp_ty native)) ;
-                ("convertible", R.B (Result.is_ok result)) ;
-                ("reject_reason",
-                 (match result with Error r -> R.S (Link.string_of_reject r) | Ok _ -> R.N)) ;
-                ("bound", R.B (Result.is_ok result)) ;
-                ("r_type", (match result with Ok ty -> R.S (pp_ty ty) | Error _ -> R.N)) ;
-                ("degenerate", R.B (match result with Ok ty -> R.degenerate ty | Error _ -> false)) ] ;
-            match result with
-            | Error _ ->
-              Format.printf "%s: no native type available@.@." r_name ;
-              (ctx, known)
-            | Ok ty ->
-              bump rep "n_ep_linked" ;
-              let gty = Mlsem.Types.GTy.mk ty in
-              add_typed rep r_name (Some c_name) gty ;
-              Format.printf "%s: @[%a@]@.@." r_name Mlsem.Types.GTy.pp gty ;
-              (Driver.bind ctx r_name gty, StrSet.add r_name known))
-            natives (ctx, StrSet.empty)
+            match conv with
+            | R_c_typing.Package.C | R_c_typing.Package.Fortran ->
+              let conv = if conv = R_c_typing.Package.C then ".C" else ".Fortran" in
+              let d = Option.bind native Link.dotcode_kinds_of_native
+                      |> Option.map (fun kinds ->
+                        { Link.name = Link.dotcode_name conv r_name ; kinds }) in
+              (* A name the signature syntax cannot spell is not bound. *)
+              let bound = Option.bind d (fun d ->
+                  try Some (Link.add_dotcode_helpers ctx d, d) with _ -> None) in
+              let r_type (d : Link.dotcode) =
+                Printf.sprintf "list(%s)"
+                  (String.concat ", " (List.map Link.string_of_dotcode_kind d.kinds)) in
+              emit rep "link"
+                [ ("r_name", R.S r_name) ; ("symbol", R.S c_name) ;
+                  ("native_typed", R.B (native <> None)) ;
+                  ("native_type", opt_s (Option.map pp_ty native)) ;
+                  ("convertible", R.B (d <> None)) ;
+                  ("reject_reason",
+                   (match native, d with
+                    | None, _ -> R.S (Link.string_of_reject Link.No_native_type)
+                    | Some _, None -> R.S (Link.string_of_reject Link.Not_a_dotcode_routine)
+                    | _, Some _ -> R.N)) ;
+                  ("bound", R.B (bound <> None)) ;
+                  ("r_type", opt_s (Option.map r_type d)) ;
+                  ("degenerate", R.B false) ] ;
+              (match bound with
+               | None ->
+                 Format.printf "%s: no native type available@.@." r_name ;
+                 (ctx, known, dotcode)
+               | Some (ctx, d) ->
+                 bump rep "n_ep_linked" ;
+                 Format.printf "%s: %s@.@." r_name (r_type d) ;
+                 (ctx, known, StrMap.add r_name d dotcode))
+            | R_c_typing.Package.Call | R_c_typing.Package.External ->
+              let result =
+                match native with
+                | None -> Error Link.No_native_type
+                | Some ty -> Link.r_type_of_native' ty in
+              emit rep "link"
+                [ ("r_name", R.S r_name) ; ("symbol", R.S c_name) ;
+                  ("native_typed", R.B (native <> None)) ;
+                  ("native_type", opt_s (Option.map pp_ty native)) ;
+                  ("convertible", R.B (Result.is_ok result)) ;
+                  ("reject_reason",
+                   (match result with Error r -> R.S (Link.string_of_reject r) | Ok _ -> R.N)) ;
+                  ("bound", R.B (Result.is_ok result)) ;
+                  ("r_type", (match result with Ok ty -> R.S (pp_ty ty) | Error _ -> R.N)) ;
+                  ("degenerate", R.B (match result with Ok ty -> R.degenerate ty | Error _ -> false)) ] ;
+              match result with
+              | Error _ ->
+                Format.printf "%s: no native type available@.@." r_name ;
+                (ctx, known, dotcode)
+              | Ok ty ->
+                bump rep "n_ep_linked" ;
+                let gty = Mlsem.Types.GTy.mk ty in
+                add_typed rep r_name (Some c_name) gty ;
+                Format.printf "%s: @[%a@]@.@." r_name Mlsem.Types.GTy.pp gty ;
+                (Driver.bind ctx r_name gty, StrSet.add r_name known, dotcode))
+            natives (ctx, StrSet.empty, StrMap.empty)
         in
         let known n = StrSet.mem n known in
+        let dotcode n = StrMap.find_opt n dotcode in
         List.fold_left (fun ctx f ->
           Format.printf "@.@{<bold>===== %s =====@}@." f.path ;
           process_r_file ?timeout:opts.timeout rep ~role:"package" ~defined ~native_syms ctx
-            { f with prog = Link.rewrite_native_calls known f.prog })
+            { f with prog = Link.rewrite_native_calls ~dotcode known f.prog })
           ctx files
         |> ignore ;
         opts.fuzz |> Option.iter (fun fopts ->

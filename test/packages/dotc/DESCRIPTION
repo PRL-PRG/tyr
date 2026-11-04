@@ -1,0 +1,5 @@
+Package: dotc
+Version: 0.1
+Title: Calls through .C
+Description: Routines called through .C, to test how their calls are typed.
+License: MIT

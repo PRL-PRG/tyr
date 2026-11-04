@@ -1,0 +1,2 @@
+useDynLib(dotc)
+export(conv, positive, upper, xor_bytes)

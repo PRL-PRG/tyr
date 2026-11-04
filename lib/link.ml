@@ -42,12 +42,15 @@ type reject =
   | Empty_native_type       (* it produced [empty] *)
   | Not_a_function          (* a global, or inference left a non-arrow *)
   | Empty_after_conversion  (* every arrow's domain had no R counterpart *)
+  | Not_a_dotcode_routine   (* [.C]/[.Fortran]: not a single arrow over the
+                               pointers they pass (cf. [dotcode_kinds_of_native]) *)
 
 let string_of_reject = function
   | No_native_type -> "no native type"
   | Empty_native_type -> "empty native type"
   | Not_a_function -> "not a function type"
   | Empty_after_conversion -> "empty after conversion"
+  | Not_a_dotcode_routine -> "not a .C routine"
 
 (* [r_type_of_native' ty] is the type of the R binding that stands for a native
    routine whose inferred type is [ty], or the reason there is none. *)
@@ -71,6 +74,112 @@ let r_type_of_native ty = Result.to_option (r_type_of_native' ty)
 
 let is_fun_ty ty = Ty.leq ty fun_ty && not (Ty.is_empty ty)
 
+(* ===== .C and .Fortran ===== *)
+
+(* [.C] and [.Fortran] pass each argument as a pointer to a copy of its data,
+   and return the list of these copies as the routine left them: named after
+   the tags of the arguments, with the attributes of the arguments, and with
+   the same storage mode and length (R's [do_dotCode]). So the R type of such a
+   call follows from the kinds of pointers the routine takes, whatever its body
+   does, and the calls are rewritten into lists of applications of helpers,
+   one per argument (cf. [dotcode_call]). *)
+type dotcode_kind = Int | Dbl | Chr | Raw
+
+(* The C type of each kind, as [C_interface.dotC_typeof] translates it. *)
+let dotcode_ctypes =
+  let module A = R_c_typing.Ast in
+  [ Int, A.Ptr A.Int ; Dbl, A.Ptr A.Float ; Chr, A.Ptr (A.Ptr A.Char) ; Raw, A.Ptr A.Char ]
+
+let string_of_dotcode_kind = function
+  | Int -> "int*" | Dbl -> "double*" | Chr -> "char**" | Raw -> "unsigned char*"
+
+let kind_of_dotcode_ty ty =
+  dotcode_ctypes |> List.find_map (fun (k, ct) ->
+    let kty = R_c_typing.C_interface.dotC_typeof R_c_typing.Ast.DeclMap.empty ct in
+    if Ty.leq ty kty && Ty.leq kty ty then Some k else None)
+
+(* The kinds of the parameters of a routine typed for [.C], i.e. by
+   [C_interface.infer_dotC]: a single arrow from a tuple of R vectors. *)
+let dotcode_kinds_of_native ty =
+  match Arrow.dnf ty with
+  | [ [ (dom, _) ] ] ->
+    (match Tuple.decompose dom with
+     | [ (_, [ tys ]) ], _ ->
+       let kinds = List.filter_map kind_of_dotcode_ty tys in
+       if List.length kinds = List.length tys then Some kinds else None
+     | _ -> None)
+  | _ -> None
+
+(* The routine [sym], called through [conv] ([".C"] or [".Fortran"]), is
+   represented by the bindings [<conv>.<sym>[i]], one per parameter, and by
+   [<conv>.<sym>] for the whole routine. Neither can be the name of an R
+   binding, and they show in the error messages. *)
+type dotcode = { name : string ; kinds : dotcode_kind list }
+
+let dotcode_name conv sym = conv ^ "." ^ sym
+let param_helper d i = Printf.sprintf "%s[%d]" d.name (i + 1)
+
+let modes = function
+  | Int -> [ "INT" ; "LGL" ] | Dbl -> [ "DBL" ] | Chr -> [ "CHR" ] | Raw -> [ "RAW" ]
+
+(* [param_helper d i] gives back its argument with its attributes, its storage
+   mode and its length, but with any value. A logical goes to an [int*] and
+   comes back logical. The domains do not exclude [NA], though [.C] refuses it
+   unless [NAOK = TRUE]: rstt only tells NA-free vectors apart for scalars.
+   The whole routine takes exactly its parameters, and its result does not
+   matter: it is only applied to the arguments of a call of the wrong arity,
+   to report it. *)
+let dotcode_signatures d =
+  let params =
+    d.kinds |> List.mapi (fun i k ->
+      modes k |> List.concat_map (fun m ->
+        [ Printf.sprintf "%s : (x: %s1<`a>) -> %s1<`a>" (param_helper d i) m m ;
+          Printf.sprintf "%s : (x: %s<`a>) -> %s<`a>" (param_helper d i) m m ]))
+    |> List.concat in
+  let whole =
+    d.kinds |> List.mapi (fun i k ->
+      modes k |> List.map (fun m -> Printf.sprintf "%s<`a%d>" m (i + 1)) |> String.concat " | "
+      |> Printf.sprintf "x%d: %s" (i + 1))
+    |> String.concat ", " |> Printf.sprintf "%s : (%s) -> null" d.name in
+  whole :: params
+
+let add_dotcode_helpers ctx d =
+  List.fold_left (fun ctx s -> Driver.add_def ctx 0 (R_types.IO.parse_def s))
+    ctx (dotcode_signatures d)
+
+(* The arguments of [.C] and [.Fortran] that are not passed to the routine. *)
+let dotcode_options = [ "NAOK" ; "DUP" ; "PACKAGE" ; "ENCODING" ]
+
+(* [.C(sym, a1, n2 = a2, NAOK = TRUE)] as [base::list(h1(a1), n2 = h2(a2))].
+   With a number of arguments that is not the arity of the routine (which R
+   refuses for a registered routine), it is an application of the whole
+   routine instead, which fails. [None] when the arguments cannot be told
+   apart: forwarded [...], or an empty argument.
+   The unnamed elements come first: Rsem does not encode a positional argument
+   after a named one, and the order of the two does not show in the type of a
+   list (its named fields, and a tail for the others). *)
+let dotcode_call pos d args =
+  let args = args |> List.filter (function
+    | Some (PAst.Named (PAst.ArgId name, _)) -> not (List.mem name dotcode_options)
+    | _ -> true) in
+  let simple = args |> List.for_all (function
+    | Some (PAst.Unnamed ((_, (PAst.Dots | PAst.DotsN _)))) -> false
+    | Some (PAst.Unnamed _) | Some (PAst.Named (PAst.ArgId _, Some _)) -> true
+    | _ -> false) in
+  let call f args = PAst.Call ((pos, PAst.Id f), args) in
+  if not simple then None
+  else if List.length args <> List.length d.kinds then Some (call d.name args)
+  else
+    let wrap i e = (pos, call (param_helper d i) [ Some (PAst.Unnamed e) ]) in
+    let args = args |> List.mapi (fun i -> function
+      | Some (PAst.Unnamed e) -> Some (PAst.Unnamed (wrap i e))
+      | Some (PAst.Named (id, Some e)) -> Some (PAst.Named (id, Some (wrap i e)))
+      | a -> a) in
+    let unnamed, named = args |> List.partition (function
+      | Some (PAst.Unnamed _) -> true
+      | _ -> false) in
+    Some (PAst.Call ((pos, PAst.Ns ("base", "list")), unnamed @ named))
+
 (* ===== Calls ===== *)
 
 (* [.Call(foo, a, b)] is an application of the routine [foo] to [a] and [b].
@@ -79,19 +188,26 @@ let is_fun_ty ty = Ty.leq ty fun_ty && not (Ty.is_empty ty)
    Only symbols [known] to the native side are rewritten; the others are left
    alone, so they keep failing visibly rather than silently changing meaning.
 
-   Only [.Call] is rewritten. The other conventions do not pass their arguments
-   through: [.C] copies them and returns the (possibly modified) argument list,
-   and [.External] packs everything into a single LANGSXP, so the R-level type
-   of such a call is not the type of the C routine. *)
-let rewrite_native_calls known (prog : PAst.t) : PAst.t =
+   [.C] and [.Fortran] copy their arguments and return the (possibly modified)
+   argument list: a call of a routine whose parameters have [dotcode] kinds
+   becomes that list (cf. [dotcode_call]). [.External] packs everything into a
+   single LANGSXP, so the R-level type of such a call is not the type of the C
+   routine: it is left alone. *)
+let rewrite_native_calls ?(dotcode = fun _ -> None) known (prog : PAst.t) : PAst.t =
   let rec aux (pos, e) =
     let e =
       match e with
       | PAst.Call (((_, PAst.Id name) as f), (first :: rest as args)) ->
+        let default () = PAst.Call (aux f, List.map aux_arg args) in
         (match R_deps.convention_of_name name, R_deps.symbol_of_arg first with
          | Some R_c_typing.Package.Call, Some symbol when known symbol ->
            PAst.Call ((pos, PAst.Id symbol), List.map aux_arg rest)
-         | _ -> PAst.Call (aux f, List.map aux_arg args))
+         | Some (R_c_typing.Package.C | R_c_typing.Package.Fortran), Some symbol ->
+           (match Option.bind (dotcode symbol) (fun d ->
+                    dotcode_call pos d (List.map aux_arg rest)) with
+            | Some e -> e
+            | None -> default ())
+         | _ -> default ())
       | PAst.Call (f, args) -> PAst.Call (aux f, List.map aux_arg args)
       | PAst.Unop (str, e) -> PAst.Unop (str, aux e)
       | PAst.Binop (str, (e1, e2)) -> PAst.Binop (str, (aux e1, aux e2))
