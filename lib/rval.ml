@@ -91,7 +91,12 @@ let rec to_r = function
   | Env -> "new.env()"
   | Sym s -> Printf.sprintf "as.name(%s)" (quote s)
   | Lang s -> Printf.sprintf "quote(%s)" s
-  | ExtPtr -> "new(\"externalptr\")"
+  (* [new("externalptr")] is the class prototype, one object: external
+     pointers are not copied when modified, so a class or attribute given to
+     one sample would show on every later one. A copy through serialization
+     is a fresh null pointer. *)
+  | ExtPtr ->
+    "local({ p <- unserialize(serialize(new(\"externalptr\"), NULL)); attributes(p) <- NULL; p })"
   | Fun { ret = Some ret ; _ } -> Printf.sprintf "function(...) %s" (to_r ret)
   | Fun { ret = None ; _ } -> "function(...) stop(\"fuzz: no value\")"
   | With { v ; cls ; attrs } ->

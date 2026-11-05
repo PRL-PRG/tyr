@@ -9,7 +9,9 @@
     the fuzzer reports rather than hides.
 
     Type variables are instantiated first ({!instantiate}), with ground types
-    drawn from small pools; [sample_poly] does both.
+    taken from pools that hold a value of every kind; [sample_poly] does
+    both. Given an index, the instances go round the pools, so that calls
+    with consecutive indices try every entry.
 
     [gen_call] draws the arguments of a call from the domain of a function
     type, together with the result type the function must have on them. *)
@@ -86,22 +88,60 @@ let arg_key (a : (string, Ty.F.t) Arg.elt) =
 
 (* ===== Type variables ===== *)
 
-let mode_pool = [ Prim.Int.any ; Prim.Dbl.any ; Prim.Chr.any ; Prim.Lgl.any ]
+let mode_pool = [ Prim.Int.any ; Prim.Dbl.any ; Prim.Chr.any ; Prim.Lgl.any ;
+                  Prim.Clx.any ; Prim.Raw.any ]
 
 (* Instances for a variable under [v(..)]: a whole vector mode ([NA]
    included: non-scalar vectors can only be typed by a whole mode, cf.
    {!Valty}). *)
 let prim_pool = List.map Prim.mk mode_pool
 
-(* Instances for a variable standing for an R value. *)
-let value_pool =
-  let vec m = Attr.mk_content (Vec.mk (Vec.Vector (Prim.mk m))) in
-  let scalar m = Attr.mk_content (Vec.mk (Vec.Scalar (Prim.mk m))) in
-  [ vec Prim.Dbl.any ; scalar Prim.Chr.any' ; Null.any ; Attr.mk_content Lst.any ]
+(* Instances for a variable standing for an R value: one of every kind of
+   value, a vector of every mode, and the values whose attributes a function
+   is most likely to lose or mishandle (a factor, a matrix, a data frame, an
+   attribute of no special meaning). Each is exactly that: no other class,
+   no other attribute. Built on first use: class types need the class
+   lattice, which the package's definitions build. *)
+let value_pool = lazy (
+  let absent = Ty.F.mk_descr Ty.O.absent in
+  let plain content = Attr.mk_content_noattr content in
+  let with_ ?(cls = []) attrs content =
+    let classes =
+      if cls = [] then Classes.noclass
+      else Classes.mk { pos = List.map (fun c -> Classes.L (Class c, [])) cls ; neg = [] ; unk = [] ;
+                        tail = Classes.Tail (AbsentOr, []) } in
+    (* An attribute is an R value, with no attribute of its own. *)
+    let attrs = Lst.mk { bindings = List.map (fun (l, t) ->
+        l, Ty.F.mk_descr (Ty.O.required (plain t))) attrs ; tl = absent } in
+    Attr.mk { content ; classes ; attrs } in
+  let vec m = Vec.mk (Vec.Vector (Prim.mk m)) in
+  let scalar m = Vec.mk (Vec.Scalar (Prim.mk m)) in
+  let arrows_any = Arrows.any |> Descr.mk_arrows |> Ty.mk_descr in
+  [ plain (vec Prim.Lgl.any) ; plain (vec Prim.Int.any) ; plain (vec Prim.Dbl.any) ;
+    plain (vec Prim.Clx.any) ; plain (vec Prim.Chr.any) ; plain (vec Prim.Raw.any) ;
+    plain (scalar Prim.Dbl.any') ; plain (scalar Prim.Chr.any') ;
+    Null.any ; Sym.any ;
+    plain Lst.any ;
+    with_ [ "names", vec Prim.Chr.any ]
+      (Lst.mk { bindings = [ "a", Ty.F.mk_descr (Ty.O.required Ty.any) ] ; tl = absent }) ;
+    with_ ~cls:[ "factor" ] [ "levels", vec Prim.Chr.any ] (vec Prim.Int.any) ;
+    with_ [ "dim", vec Prim.Int.any ] (vec Prim.Dbl.any) ;
+    with_ ~cls:[ "data.frame" ] [ "names", vec Prim.Chr.any ; "row.names", vec Prim.Int.any ]
+      (Lst.mk { bindings = [ "a", Ty.F.mk_descr (Ty.O.required Ty.any) ] ; tl = absent }) ;
+    with_ [ "fuzz_attr", vec Prim.Chr.any ] (vec Prim.Dbl.any) ;
+    plain arrows_any ; plain Env.any ; plain Lang.any ; plain ExternalPtr.any ])
 
 (* Rows for row variables: no further field (a list with no other element,
    a value with no other attribute, no extra argument), or anything. *)
 let row_pool = [ Row.all_fields (Ty.F.mk_descr Ty.O.absent) ; Row.any ]
+
+(* The entry of [pool] for the [j]-th variable at the [i]-th index: the
+   variables go round the pool out of step, by a stride prime to its size,
+   so that the instances of two variables vary across indices. *)
+let nth_entry pool ~index:i j =
+  let n = List.length pool in
+  let rec stride k = if n mod k = 0 then stride (k + 1) else k in
+  List.nth pool (((i + j * stride 3) mod n + n) mod n)
 
 (* The R values: [NULL] and symbols, and every value that may carry
    attributes. *)
@@ -119,27 +159,34 @@ let stands_for_value ty v =
   let sub inst = Subst.apply (Subst.singleton1 v inst) ty in
   not (Ty.equiv (sub r_values) (sub Ty.empty))
 
-(* A substitution of every variable of [ty], each drawn from the pool that
-   fits its occurrences. Each instance is drawn among those for which the
-   substitution so far satisfies [ok], if any: a variable in [x: 'a & null]
-   can only be [null]. *)
-let instantiate ?(ok = fun _ -> true) st ty =
-  let ty, s1 =
-    instance_vars ty |> vars |> List.fold_left (fun (ty, s) v ->
+(* A substitution of every variable of [ty], each taken from the pool that
+   fits its occurrences. With [index], the [j]-th variable gets the entry
+   {!nth_entry} picks, so that consecutive indices go round the pool;
+   without, or when that entry fails [ok], an entry is drawn among those for
+   which the substitution so far satisfies [ok], if any: a variable in
+   [x: 'a & null] can only be [null]. *)
+let instantiate ?(ok = fun _ -> true) ?index st ty =
+  let choose pool j fits =
+    let fitting = match List.filter fits pool with [] -> pool | p -> p in
+    match index with
+    | Some i when fits (nth_entry pool ~index:i j) -> nth_entry pool ~index:i j
+    | _ -> Option.get (pick st fitting) in
+  let ty, s1, _ =
+    instance_vars ty |> vars |> List.fold_left (fun (ty, s, j) v ->
       let sub inst = Subst.apply (Subst.singleton1 v inst) ty in
-      let pool = if stands_for_value ty v then value_pool else prim_pool in
-      let pool =
-        match List.filter (fun i -> ok (Subst.of_list (List.rev ((v, i) :: s)) [])) pool with
-        | [] -> pool | p -> p in
-      let inst = Option.get (pick st pool) in
-      sub inst, (v, inst) :: s) (ty, [])
+      let pool = if stands_for_value ty v then Lazy.force value_pool else prim_pool in
+      let inst = choose pool j (fun i -> ok (Subst.of_list (List.rev ((v, i) :: s)) [])) in
+      sub inst, (v, inst) :: s, j + 1) (ty, [], 0)
   in
-  let ty, s2 =
-    Ty.row_vars ty |> row_vars |> List.fold_left (fun (ty, s) v ->
-      let inst = Option.get (pick st row_pool) in
-      Subst.apply (Subst.singleton2 v inst) ty, (v, inst) :: s) (ty, [])
+  let ty, s2, _ =
+    Ty.row_vars ty |> row_vars |> List.fold_left (fun (ty, s, j) v ->
+      let inst = choose row_pool j (fun _ -> true) in
+      Subst.apply (Subst.singleton2 v inst) ty, (v, inst) :: s, j + 1) (ty, [], 0)
   in
   ty, Subst.of_list (List.rev s1) (List.rev s2)
+
+(* The number of variables [instantiate] gives an instance to. *)
+let n_vars ty = VarSet.cardinal (instance_vars ty) + RowVarSet.cardinal (Ty.row_vars ty)
 
 (* [ty] with every variable replaced by its largest instance: for a
    domain, where the variables occur positively, the union of the domains
@@ -323,7 +370,8 @@ and gen_classes st classes =
 
 (* The attributes other than the class. [names] and [dim] must fit the
    length of the value, so they are built from it rather than from their
-   type, which the validation checks anyway. *)
+   type, which the validation checks anyway; a list has the names of its
+   elements. *)
 and gen_attrs st depth v attrs =
   let ls = try Lst.destruct (Ty.cap attrs Lst.any) with Invalid_argument _ -> [] in
   match pick st (lines Lst.mk ls) with
@@ -338,6 +386,8 @@ and gen_attrs st depth v attrs =
       let ty, opt = field f in
       if Ty.is_empty ty || (opt && coin st) then None
       else match lbl, len with
+        (* The names of a list are those of its elements, already there. *)
+        | "names", Some _ when (match v with Rval.List _ -> true | _ -> false) -> None
         | "names", Some n ->
           Some (lbl, Rval.Vec (Chr, List.init n (fun i -> Rval.S (Printf.sprintf "n%d" (i + 1)))))
         | "dim", Some n -> Some (lbl, Rval.Vec (Int, [I n ; I 1]))
@@ -362,19 +412,20 @@ let sample ?(depth = default_depth) st ty = sample_depth st depth ty
    value. *)
 let inst_tries = 5
 
-let retry_instances ?ok st ty f =
-  let rec loop n =
+(* The first instance is the one [index] picks, the others are drawn. *)
+let retry_instances ?ok ?index st ty f =
+  let rec loop n index =
     if n = 0 then None
     else
-      let ty', s = instantiate ?ok st ty in
+      let ty', s = instantiate ?ok ?index st ty in
       match f ty' s with
       | Some x -> Some (s, x)
-      | None -> if VarSet.is_empty (Ty.vars ty) then None else loop (n - 1)
+      | None -> if VarSet.is_empty (Ty.vars ty) then None else loop (n - 1) None
   in
-  loop inst_tries
+  loop inst_tries index
 
-let sample_poly ?depth st ty =
-  retry_instances ~ok:(fun s -> not (Ty.is_empty (Subst.apply s ty))) st ty
+let sample_poly ?depth ?index st ty =
+  retry_instances ~ok:(fun s -> not (Ty.is_empty (Subst.apply s ty))) ?index st ty
     (fun ty _ -> sample ?depth st ty)
 
 (* ===== Argument lists ===== *)
@@ -458,8 +509,9 @@ let arrows fty = dnf (content fty) |> List.concat
 
 (* With [arrow], the arguments come from the domain of that arrow (of
    [arrows fty]), and the variables are instantiated so that it is not
-   empty; otherwise, from the domain of any. *)
-let gen_call ?(positional = false) ?arrow st fty =
+   empty; otherwise, from the domain of any. [index] picks the instance of
+   the variables ({!instantiate}). *)
+let gen_call ?(positional = false) ?arrow ?index st fty =
   let content = content fty in
   let target = match arrow with
     | None -> Mlsem.Types.Arrow.domain content
@@ -489,5 +541,5 @@ let gen_call ?(positional = false) ?arrow st fty =
     loop tries
   in
   let ok s = not (Ty.is_empty (Subst.apply s target)) in
-  retry_instances ~ok st content attempt
+  retry_instances ~ok ?index st content attempt
   |> Option.map (fun (subst, (call, expected)) -> { subst ; call ; expected })

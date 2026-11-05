@@ -32,5 +32,5 @@ count_chars: ok 8, rejected 3, accepted 2
 first_char: ok 8, rejected 3, accepted 1
   accepted: list("x" = list()) x kind:list, returned (CHR & ~vec1)<> with {  }
 checked: ok 8, rejected 3
-first_of: ok 8, rejected 3, accepted 3
-  accepted: list(NULL) x drop, returned null
+first_of: ok 20, rejected 6, accepted 2
+  accepted: list("x" = 2L) y drop, returned 2L<> with {  }

@@ -159,7 +159,7 @@ INT<factor> with { levels: CHR }
   structure(c(NA_integer_, -1L), "levels" = "é", class = "factor")
   structure(2147483647L, "levels" = "é", class = "factor")
 <foo, bar>
-  structure(new("externalptr"), class = c("foo", "bar"))
+  structure(local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p }), class = c("foo", "bar"))
   structure(complex(0), class = c("foo", "bar"))
   structure(character(0), class = c("foo", "bar"))
   structure(list(), class = c("foo", "bar"))
@@ -189,10 +189,10 @@ lang
   quote(f(x))
   quote(f(x))
 externalptr
-  new("externalptr")
-  new("externalptr")
-  new("externalptr")
-  new("externalptr")
+  local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p })
+  local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p })
+  local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p })
+  local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p })
 (x: dbl1) -> chr1
   function(...) as.raw(c(255))
   function(...) 42L
@@ -204,20 +204,20 @@ externalptr
   function(...) stop("fuzz: no value")
   function(...) stop("fuzz: no value")
 v('a)
-  "a"
+  0L
   logical(0)
-  "NA"
-  c("é", "é", "x y", "NA", "x y")
+  NA_complex_
+  c(complex(real = 1, imaginary = -2), complex(real = 1, imaginary = -2), complex(real = 0, imaginary = 0), NA_complex_, complex(real = 0, imaginary = 0))
 'a
-  -2147483647
-  NULL
-  "a"
-  NA_real_
+  "x y"
+  quote(f(x))
+  structure(list("a" = NULL), "row.names" = 1L, class = "data.frame")
+  list("a" = NULL)
 { a: 'a, b: 'a }
-  list("a" = NULL, "b" = NULL)
-  list("a" = "NA", "b" = "é")
-  list("a" = list(), "b" = list(NULL))
-  list("a" = c(2147483647, -2.5), "b" = numeric(0))
+  list("a" = c(2147483647, -1), "b" = NaN)
+  list("a" = local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p }), "b" = local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p }))
+  list("a" = new.env(), "b" = new.env())
+  list("a" = structure(c(42L, 2147483647L, 2L, NA_integer_, -2147483647L), "levels" = c("x y", NA_character_, "x y", "x y", NA_character_), class = "factor"), "b" = structure(-2147483647L, "levels" = "a", class = "factor"))
 v1('a) | null
   FALSE
   "é"
