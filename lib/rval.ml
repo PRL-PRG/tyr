@@ -25,7 +25,7 @@ type t =
   | Env
   | Sym of string
   | Lang of string                       (* R source of a call *)
-  | ExtPtr                                 (* a null external pointer *)
+  | ExtPtr                                 (* a null external pointer, with no tag *)
   | Fun of { doms : Mlsem.Types.Ty.t list ; ret : t option }
     (* [function(...) ret], typed at the domains [doms]; with no [ret], a
        function that always fails, the only kind of value of [d -> empty] *)
@@ -149,7 +149,7 @@ let rec describe v : Yojson.Safe.t =
   | Env -> `Assoc ["t", `String "env"]
   | Sym _ -> `Assoc ["t", `String "sym"]
   | Lang _ -> `Assoc ["t", `String "lang"]
-  | ExtPtr -> `Assoc ["t", `String "extptr"]
+  | ExtPtr -> `Assoc ["t", `String "extptr" ; "null", `Bool true]
   | Fun { doms = [] ; _ } -> `Assoc ["t", `String "closure"]
   | Fun { doms ; ret } ->
     let doms = List.map (fun d -> `Int (Valty.register_domain d)) doms in

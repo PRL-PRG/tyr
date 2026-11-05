@@ -77,7 +77,7 @@ function(...) 1
 function(...) stop("fuzz: no value")
   : arrow<> with {  }  (inexact)
 local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p })
-  : externalptr<> with {  }
+  : externalptr(empty)<> with {  }  (inexact)
 structure(1L, "levels" = "a", class = "factor")
   : 1L<factor> with { levels: "a"<> with {  } }
 structure(c(1, 2), "names" = c("a", "b"))

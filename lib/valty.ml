@@ -7,7 +7,8 @@
 
     The description of a value is an object whose ["t"] field gives its kind:
     - ["null"], ["env"], ["sym"], ["lang"], ["pairlist"], ["extptr"],
-      ["closure"], ["builtin"]: no further field, but for the closures the
+      ["closure"], ["builtin"]: no further field, but for the external
+      pointers, whose address is null or not in ["null"], and the closures the
       fuzzer itself builds, which accept any arguments and return a constant:
       the description of that constant in ["ret"] (none if the closure
       always fails), and in ["doms"] the domains to type them at (see
@@ -38,7 +39,9 @@
     - lists with unnamed elements: all of them go to the list's tail, which
       does not count them, so [list(1)] gets the type of [list()] as well;
     - lists with duplicated names, of which the encoding keeps one;
-    - doubles too large for an OCaml [int], typed as any double. *)
+    - doubles too large for an OCaml [int], typed as any double;
+    - external pointers: R shows neither their target nor their tag, which
+      their type has, only whether their address is null. *)
 
 open Rstt
 
@@ -154,7 +157,14 @@ let rec of_json d =
       | "list" -> list d
       | "env" -> Env.any, true
       | "lang" | "pairlist" -> Lang.any, true
-      | "extptr" -> ExternalPtr.any, true
+      (* A null address points to nothing: such a pointer has no target.
+         It is what the fuzzer builds (base R cannot build another), and
+         what C code that needs a real pointer rejects. *)
+      | "extptr" ->
+        (match field "null" d with
+         | `Bool true -> ExternalPtr.null
+         | `Bool false -> Ty.diff ExternalPtr.any ExternalPtr.null
+         | _ -> ExternalPtr.any), false
       | "closure" when field "doms" d <> `Null ->
         let ret = match field "ret" d with `Null -> Ty.empty | r -> (of_json r).ty in
         field "doms" d |> to_list "doms"

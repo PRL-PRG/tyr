@@ -16,7 +16,7 @@ fuzz_describe <- function(x) {
     symbol = list(t = "sym"),
     language = list(t = "lang"),
     pairlist = list(t = "pairlist"),
-    externalptr = list(t = "extptr"),
+    externalptr = list(t = "extptr", null = fuzz_extptr_null(x)),
     closure = list(t = "closure"),
     special = , builtin = list(t = "builtin"),
     list(t = "other", type = type))
@@ -25,6 +25,16 @@ fuzz_describe <- function(x) {
   a$class <- NULL
   if (length(a)) d$attrs <- lapply(a, fuzz_describe)
   d
+}
+
+# Whether the address of the external pointer [x] is null. identical() compares
+# external pointers by address, and attributes; [x] is compared with a fresh
+# null pointer given the same attributes. (A copy: setting the attributes of an
+# external pointer modifies it in place.)
+fuzz_extptr_null <- function(x) {
+  q <- unserialize(serialize(new("externalptr"), NULL))
+  attributes(q) <- attributes(x)
+  identical(x, q)
 }
 
 fuzz_describe_vec <- function(x, mode) {
