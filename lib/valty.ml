@@ -127,7 +127,7 @@ let classes d =
   | `Null -> Classes.noclass
   | cls ->
     let pos =
-      to_list "class" cls |> List.map (fun c -> Classes.L (to_string "class" c, []))
+      to_list "class" cls |> List.map (fun c -> Classes.L (Class (to_string "class" c), []))
     in
     Classes.mk { pos ; neg = [] ; unk = [] ; tail = Classes.Tail (AbsentOr, []) }
 

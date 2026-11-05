@@ -311,9 +311,12 @@ and gen_classes st classes =
   match Classes.destruct classes with
   | exception Invalid_argument _ -> None
   | { pos ; unk ; _ } ->
-    let names = List.map (fun (Classes.L (n, _)) -> n) in
+    (* A method class ([@m]) stands for the classes implementing [m]: none is
+       generated for it, which the validation of the value then rejects if it
+       was required. *)
+    let names = List.filter_map (function Classes.L (Class n, _) -> Some n | _ -> None) in
     (* The order of [pos] is the order of the classes, which matters. *)
-    let maybe = unk |> List.sort String.compare |> List.filter (fun _ -> coin st) in
+    let maybe = names unk |> List.sort String.compare |> List.filter (fun _ -> coin st) in
     match names pos @ maybe with
     | [] -> None
     | cls -> Some cls

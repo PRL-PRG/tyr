@@ -4,10 +4,6 @@
 
 open Mlsem.Types
 
-(* Types mentioning a class need the class lattice, frozen here as Rsem's
-   driver would. *)
-let () = Rstt.Classes.build_lattice ()
-
 let sigs = [
   "(x: int1, y: chr1?) -> dbl1";
   "(x: dbl, ...: chr1) -> null";
