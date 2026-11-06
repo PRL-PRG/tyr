@@ -33,13 +33,13 @@ upper: (((s: vec | null) -> CHR<>) & ((s: vec1) -> CHR1<>))<> with {  }
 xor_bytes: (((x: vec | null, key: vec | null) -> raw<>) & ((x: vec1, key: vec | null)
  -> raw1<>))<> with {  }
 
-both: (((a: vec | null) -> { a: DBL<>, n: INT1<>, ok: LGL1<> }) & ((a: vec1) ->
- { a: DBL1<>, n: INT1<>, ok: LGL1<> }))<> with {  }
+both: (((a: vec | null) -> { a: DBL<>, n: INT1<>, ok: LGL1<> }<>) & ((a: vec1) ->
+ { a: DBL1<>, n: INT1<>, ok: LGL1<> }<>))<> with {  }
 
 too_few: Untypeable: untypeable encoding
 Line 23, characters 23-51
 application of .C.convolve failed
-argument is of type @(DBL1<>)
+argument is of type @(DBL<>)
 
 wrong_type: Untypeable: untypeable encoding
 Line 26, characters 26-66

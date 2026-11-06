@@ -476,7 +476,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
   let module Rn = R_c_typing.Runner in
   Mlsem.System.Config.infer_overload := true ;
   setup_include_dirs opts.include_dirs ;
-  if pkg.c_files = [] then ((fun _ -> None), R_c_typing.Defs.parsed_types_penv)
+  if pkg.c_files = [] then ((fun _ -> None), R_c_typing.Defs.parsed_types_penv ())
   else
     let module Runner = R_c_typing.Runner in
     let module PAst = R_c_typing.PAst in
@@ -632,7 +632,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
                 ~wall:(Unix.gettimeofday () -. t0)) ;
             result)
             acc past)
-          (Idenv.empty, R_c_typing.Defs.initial_env, decl, StrMap.empty) pasts
+          (Idenv.empty, R_c_typing.Defs.initial_env (), decl, StrMap.empty) pasts
       in
 
       (* The function definitions, callees first, restricted to what the entry
@@ -701,7 +701,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
     let (idenv, env), penv =
       with_void_ty Mlsem.Types.Ty.unit (fun () -> with_native_hooks (fun () ->
         with_outcome_hook on_outcome (fun () ->
-          Mlsem.Types.PEnv.sequential_handler R_c_typing.Defs.parsed_types_penv run ())))
+          Mlsem.Types.PEnv.sequential_handler (R_c_typing.Defs.parsed_types_penv ()) run ())))
     in
     (* A routine registered with the types of its arguments and with no C
        prototype, such as a Fortran subroutine, has the type they give. *)
@@ -781,7 +781,6 @@ let run opts root =
         ("log_times", R.B opts.native.log_times) ; ("prefix", R.S pkg.prefix) ;
         ("n_r_files", R.I (List.length pkg.r_files)) ;
         ("n_c_files", R.I (List.length pkg.c_files)) ;
-        ("load_ty_sec", R.F !R_c_typing.Defs.ty_load_time) ;
         ("prov_typr", prov "TYPR_SHA") ; ("prov_rsem", prov "RSEM_SHA") ;
         ("prov_nativesem", prov "NATIVESEM_SHA") ; ("prov_rstt", prov "RSTT_SHA") ;
         ("prov_pinned", prov "TYPR_PINNED") ] ;
@@ -814,6 +813,21 @@ let run opts root =
 
     if opts.deps_only then report_deps opts pkg entry_points files
     else begin
+      (* As Rsem's main, the class-overloads of every file are declared before
+         any file is processed (cf. [Driver.declare_overloads]). A class must
+         be declared before a type mentions it, and the [.ty] files and the
+         native code can: so before the native phase, and before the [.ty]
+         files are loaded. *)
+      let prelude_files = List.filter_map (parse_r rep "prelude") opts.prelude in
+      let ctx =
+        List.fold_left (fun ctx f -> Driver.declare_overloads ctx (f.prog, f.extras))
+          Driver.initial_ctx (prelude_files @ files) in
+      (try MetaEnv.declare_classes ctx.Driver.tenv
+       with e -> Format.printf "tyr: declaring the classes: %s@.@." (Printexc.to_string e)) ;
+      ignore (R_c_typing.Defs.parsed_types_penv ()) ;
+      emit rep "phase"
+        [ ("name", R.S "load_ty") ; ("elapsed_sec", R.F !R_c_typing.Defs.ty_load_time) ] ;
+
       Format.printf "@.@{<bold>===== Native code =====@}@.@." ;
       let native_ty, penv = run_native opts rep pkg entry_points in
 
@@ -821,12 +835,6 @@ let run opts root =
       (* Everything below prints types, which needs the printing environment the
          native phase produced (it holds the [.ty] aliases). *)
       Mlsem.Types.PEnv.sequential_handler penv (fun () ->
-        let prelude_files = List.filter_map (parse_r rep "prelude") opts.prelude in
-        (* As Rsem's main: the class-overloads of every file are declared before
-           any file is processed (cf. [Driver.declare_overloads]). *)
-        let ctx =
-          List.fold_left (fun ctx f -> Driver.declare_overloads ctx (f.prog, f.extras))
-            Driver.initial_ctx (prelude_files @ files) in
         let ctx =
           List.fold_left (fun ctx f ->
             Format.printf "@.@{<bold>===== prelude %s =====@}@." f.path ;

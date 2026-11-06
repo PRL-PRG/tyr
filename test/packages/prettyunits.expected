@@ -36,24 +36,26 @@ name: format_num
 ===== packages/prettyunits/R/numbers.R =====
 format_num: Untypeable: untypeable projection
 Line 13, characters 4-9
-argument: null | 'I470
+argument: null | 'I573
 
 
 ===== packages/prettyunits/R/rounding.R =====
 pretty_round: Untypeable: untypeable encoding
 Line 29, characters 26-54
 application of base::as.character failed
-argument is of type @(v('I675))
+argument is of type @(any)
 
 pretty_signif: Untypeable: untypeable encoding
 Line 93, characters 24-52
 application of base::as.character failed
-argument is of type @(v('I919))
+argument is of type @(any)
 
 
 ===== packages/prettyunits/R/p-value.R =====
-pretty_p_value:
-timeout: inference/checking exceeded 60 seconds
+pretty_p_value: Untypeable: untypeable encoding
+Line 21, characters 15-36
+application of base::- failed
+argument is of type @(dbl<. | `I117>)
 
 
 ===== packages/prettyunits/R/pretty-package.R =====
@@ -73,7 +75,7 @@ name: format_bytes
 ===== packages/prettyunits/R/sizes.R =====
 format_bytes: Untypeable: untypeable projection
 Line 13, characters 4-9
-argument: null | 'I1197
+argument: null | 'I1217
 
 
 ===== packages/prettyunits/R/xtime-ago.R =====

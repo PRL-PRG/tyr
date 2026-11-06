@@ -32,7 +32,8 @@ uses_dot_global: (() -> CHR1)<> with {  }
 
 uses_dot_machine: (() -> DBL1)<> with {  }
 
-powered: (((x: dbl) -> DBL) & ((x: dbl1) -> DBL1))<> with {  }
+powered: ∀`a. (((x: dbl1<. | `a>) -> DBL1<. | `a>) & ((x: dbl<. | `a>) ->
+ DBL<. | `a>))<> with {  }
 
 structured: ∀'a,'b. (((x: any) -> any) & ((x: v('b)) -> v('b)) & ((x: { 'a }) ->
  { 'a }))<> with {  }
@@ -51,7 +52,7 @@ for_break_cond: (() -> DBL1 | INT1)<> with {  }
 
 for_nested: (() -> DBL1 | INT1)<> with {  }
 
-cache: {  }
+cache: {  }<>
 
 tyr: skipping definition fill_cache (Invalid_argument("Cannot assign to an immutable variable."))
 
@@ -87,11 +88,16 @@ use_i: (() -> DBL1 | INT1)<> with {  }
 
 ablk: dbl
 
-fblk: { h: (a: dbl1) -> dbl1 }
+fblk: Untypeable: untypeable coercion
+Line 115, characters 21-26
+expected: dbl1
+given: (DBL | INT)<difftime> | DBL1<~@"+", ...> | LGL<> | dbl<Date, ...> | <POSIXt, ...>
 
-use_fblk: (() -> dbl1)<> with {  }
+use_fblk: Untypeable: unbound variable
+Line 118, characters 23-27
+name: fblk
 
-counter: (() -> DBL1)<> with {  }
+counter: (() -> DBL1<>)<> with {  }
 
 leaked: Untypeable: unbound variable
 Line 125, characters 21-24
@@ -126,26 +132,32 @@ name: mutual_b
 blame_second: Untypeable: untypeable encoding
 Line 163, characters 46-62
 application of base::toupper failed
-argument is of type @({ 1.<> with {  } })
+argument is of type @({ 1.<> with {  } }<>)
 
 blame_branch: Untypeable: untypeable encoding
 Line 164, characters 57-73
 application of base::toupper failed
-argument is of type @({ 1.<> with {  } })
+argument is of type @({ 1.<> with {  } }<>)
 
 blame_arity: Untypeable: untypeable encoding
 Line 165, characters 46-63
 application of base::nchar failed
-argument is of type @('x & vec1, 'x & vec1, 'x & vec1, 'x & vec1)
+argument is of type @('x & vec, 'x & vec, 'x & vec, 'x & vec)
 
 cb_ty: Untypeable: untypeable coercion
 Line 176, characters 9-26
 expected: (a: dbl1) --> dbl1
-given: ((a: 'a & dbl1) --> DBL1) & ((a: 'a & ((DBL | v('I715)) & dbl)) --> dbl & ~lgl)
+given: ((a: 'a & <@"+", ...>) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: 'a & dbl1<~@"+", . | `I82>) --> DBL1<~@"+", . | `I82>) & ((a: 'a & ((DBL | dbl & v('I798))<~@"+", . | `I82> | dbl1<~@"+", . | `I82>)) --> (INT | (DBL | (DBL | INT) & v('I798)))<~@"+", . | `I82>)
 
-cb_sig: (a: dbl1) -> dbl1
+cb_sig: Untypeable: untypeable coercion
+Line 179, characters 22-27
+expected: dbl1
+given: (DBL | INT)<difftime> | DBL1<~@"+", ...> | LGL<> | dbl<Date, ...> | <POSIXt, ...>
 
 tyr: skipping definition set_cb_sig (Invalid_argument("Cannot assign to an immutable variable."))
 
-holder: { reset: (() -> null)<> with {  } }
+holder: Untypeable: untypeable coercion
+Line 184, characters 24-29
+expected: dbl1
+given: (DBL | INT)<difftime> | DBL1<~@"+", ...> | LGL<> | dbl<Date, ...> | <POSIXt, ...>
 

@@ -13,7 +13,7 @@ _: null
 re_match: Untypeable: untypeable encoding
 Line 46, characters 11-51
 application of base::regexpr failed
-argument is of type @('pattern & (CHR & vec1), CHR1<>, perl: tt<> with {  }, ...: ('_ell, empty? | `_ell))
+argument is of type @('pattern & CHR, CHR<>, perl: tt<> with {  }, ...: ('_ell, empty? | `_ell))
 
 re_match_all1: Untypeable: unbound variable
 Line 114, characters 11-20
