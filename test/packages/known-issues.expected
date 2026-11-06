@@ -141,7 +141,7 @@ argument is of type @('x & vec1, 'x & vec1, 'x & vec1, 'x & vec1)
 cb_ty: Untypeable: untypeable coercion
 Line 176, characters 9-26
 expected: (a: dbl1) --> dbl1
-given: ((a: 'a & dbl1) --> DBL1) & ((a: 'a & ((DBL | v('I711)) & dbl)) --> dbl & ~lgl)
+given: ((a: 'a & dbl1) --> DBL1) & ((a: 'a & ((DBL | v('I715)) & dbl)) --> dbl & ~lgl)
 
 cb_sig: (a: dbl1) -> dbl1
 
