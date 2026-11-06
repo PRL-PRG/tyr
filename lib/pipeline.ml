@@ -299,22 +299,30 @@ let process_r_file ?timeout rep ~role ~defined ~native_syms ctx f =
   let module R = Report in
   let warn what name exn =
     Format.printf "tyr: skipping %s %s (%s)@.@." what name (Printexc.to_string exn) in
-  let extra_name (`Comment (_, (_, str))) =
+  let annot_name str =
     let str = String.trim str in
     if String.length str <= 40 then str else String.sub str 0 40 ^ "..." in
+  let annot_error name e =
+    warn "annotation" name e ;
+    emit rep "annotation_error"
+      [ ("file", R.S f.path) ; ("comment", R.S name) ;
+        ("exn", R.S (Printexc.to_string e)) ] in
   (* The annotations declared by the previous files precede everything here. *)
   let ctx = { ctx with Driver.lannots =
     ctx.Driver.lannots |> List.map (fun a -> { a with Driver.loffset = min_int }) } in
+  (* An annotation can span several [#|] lines: [Driver.annotations] joins
+     them, and fails on a continuation line that continues nothing. *)
+  let annots =
+    try Driver.annotations f.extras
+    with e -> annot_error "#|" e ; [] in
   let ctx =
-    List.fold_left (fun ctx extra ->
-      try Driver.treat_extra f.prog ctx extra
-      with e ->
-        warn "annotation" (extra_name extra) e ;
-        emit rep "annotation_error"
-          [ ("file", R.S f.path) ; ("comment", R.S (extra_name extra)) ;
-            ("exn", R.S (Printexc.to_string e)) ] ;
-        ctx) ctx f.extras
+    List.fold_left (fun ctx annot ->
+      try Driver.treat_annotation f.prog ctx annot
+      with e -> annot_error (annot_name (snd annot)) e ; ctx)
+      ctx annots
   in
+  (* As [Driver.process]: the classes of the class-overloads declared so far. *)
+  (try MetaEnv.declare_classes ctx.Driver.tenv with e -> warn "classes" f.path e) ;
   (* [f.defs] was computed at parse time: [f.prog] may since have had its
      [.Call]s rewritten (see [Link.rewrite_native_calls]), which would hide
      the native calls each definition makes. *)
@@ -813,11 +821,17 @@ let run opts root =
       (* Everything below prints types, which needs the printing environment the
          native phase produced (it holds the [.ty] aliases). *)
       Mlsem.Types.PEnv.sequential_handler penv (fun () ->
+        let prelude_files = List.filter_map (parse_r rep "prelude") opts.prelude in
+        (* As Rsem's main: the class-overloads of every file are declared before
+           any file is processed (cf. [Driver.declare_overloads]). *)
+        let ctx =
+          List.fold_left (fun ctx f -> Driver.declare_overloads ctx (f.prog, f.extras))
+            Driver.initial_ctx (prelude_files @ files) in
         let ctx =
           List.fold_left (fun ctx f ->
             Format.printf "@.@{<bold>===== prelude %s =====@}@." f.path ;
             process_r_file ?timeout:opts.timeout rep ~role:"prelude" ~defined ~native_syms ctx f)
-            Driver.initial_ctx (List.filter_map (parse_r rep "prelude") opts.prelude)
+            ctx prelude_files
         in
         (* Bind each native symbol under its R-visible name, with its C type
            adapted to an R calling convention. A routine called through [.C]
