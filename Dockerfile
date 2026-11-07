@@ -27,7 +27,7 @@ ENV PATH="/home/opam/.cargo/bin:${PATH}"
 # Pins of the set-theoretic stack. Keep in sync with nativesem's ci.yml and
 # Dockerfile: TypR builds NativeSem and Rsem in one process, so they must agree.
 ARG SSTT_REF=d295f27f4aa023c20b6c5b8971151e5b61cb1863
-ARG MLSEM_REF=f40401b5ef76a97191dac0994dddf06fd07ff1e4
+ARG MLSEM_REF=744413779a67ae4b91fcb316eb75530216ee4cd1
 ARG BISECT_PPX_REF=2d8dffbbfc0c431a37319d4d9a143836c9ec542e
 
 RUN opam update --yes && eval $(opam env) && \
