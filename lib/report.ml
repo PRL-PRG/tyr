@@ -68,6 +68,39 @@ let degenerate ty =
   && Arrow.dnf content
      |> List.for_all (List.for_all (fun (_dom, codom) -> Ty.is_empty codom))
 
+(* The parameters of a function type that are typed [any] in at least one of
+   its arrows, in order: by name for an R function, whose domain is an
+   argument record, and by 1-based position for a native one, whose domain is
+   a C argument tuple (cf. [Link.arg_of_tuple]). Inference learned nothing
+   about them: often a smell, though a parameter the body never uses, or one
+   a function really accepts whatever it is, is rightly [any]. A type variable
+   is not [any], and neither is the [...] of an R function, which types the
+   extra arguments. *)
+let any_args ty =
+  let content = if Ty.leq ty Rstt.Attr.any then Rstt.Attr.proj_content ty else ty in
+  if Ty.is_empty content || not (Ty.leq content Arrow.any) then []
+  else
+    let is_any t = Ty.leq Ty.any t in
+    let field_any f =
+      Rstt.Ty.F.get_descr f |> Rstt.Ty.O.get |> Rstt.Ty.O.Atom.get |> is_any in
+    let of_dom dom =
+      if Ty.leq dom Rstt.Arg.any then
+        (try Rstt.Arg.destruct dom with Invalid_argument _ -> [])
+        |> List.concat_map (function
+          | Rstt.Arg.DefSite a ->
+            a.pos_named @ a.named
+            |> List.filter_map (fun (n, f) -> if field_any f then Some n else None)
+          | Rstt.Arg.CallSite _ -> [])
+      else
+        Tuple.decompose dom |> fst
+        |> List.concat_map (fun (_arity, lines) -> lines |> List.concat_map (fun comps ->
+          comps |> List.mapi (fun i t -> if is_any t then Some (string_of_int (i + 1)) else None)
+          |> List.filter_map Fun.id))
+    in
+    let names =
+      Arrow.dnf content |> List.concat_map (List.concat_map (fun (dom, _) -> of_dom dom)) in
+    List.fold_left (fun acc n -> if List.mem n acc then acc else n :: acc) [] names |> List.rev
+
 (* ===== The R side's errors ===== *)
 
 (* A definition Rsem could not type, from the error its [Driver.on_outcome]

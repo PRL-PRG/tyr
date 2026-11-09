@@ -368,7 +368,7 @@ let process_r_file ?timeout rep ~role ~defined ~native_syms ctx f =
         let gty = TyScheme.get tys |> snd in
         if role = "package" then add_typed rep n None gty ;
         let ty = GTy.ub gty in
-        Some (R.one_line TyScheme.pp_short tys, R.degenerate ty)
+        Some (R.one_line TyScheme.pp_short tys, (R.degenerate ty, R.any_args ty))
       | None -> None
     in
     let ctx', status, ty, err, skipped =
@@ -407,7 +407,8 @@ let process_r_file ?timeout rep ~role ~defined ~native_syms ctx f =
          ("role", R.S role) ] @ pos_fields (fst past) @
        [ ("annotated", R.B annotated) ; ("status", R.S status) ;
          ("type", opt_s (Option.map fst ty)) ;
-         ("degenerate", R.B (match ty with Some (_, d) -> d | None -> false)) ;
+         ("degenerate", R.B (match ty with Some (_, (d, _)) -> d | None -> false)) ;
+         ("any_args", R.L (match ty with Some (_, (_, a)) -> a | None -> [])) ;
          ("error_title", opt_s (Option.map (fun (u : R.untypeable) -> u.title) err)) ]
        @ loc_fields @
        [ ("error_name", opt_s error_name) ; ("unbound_kind", opt_s unbound_kind) ;
@@ -420,7 +421,8 @@ let process_r_file ?timeout rep ~role ~defined ~native_syms ctx f =
       if def.name <> None then begin
         bump rep ("r_n_" ^ status) ;
         Option.iter (fun k -> bump rep ("r_n_unbound_" ^ k)) unbound_kind ;
-        (match ty with Some (_, true) -> bump rep "r_n_empty_ret" | _ -> ())
+        (match ty with Some (_, (true, _)) -> bump rep "r_n_empty_ret" | _ -> ()) ;
+        (match ty with Some (_, (_, _ :: _)) -> bump rep "r_n_any_args" | _ -> ())
       end
     end ;
     ctx')
@@ -492,6 +494,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
       | `Default -> "default" | `SimpleC -> "simple_c" | `DotC -> "dot_c" | `Define -> "define" in
     let pp_tys tys = R.one_line TyScheme.pp_short tys in
     let degenerate tys = TyScheme.get tys |> snd |> GTy.ub |> R.degenerate in
+    let any_args tys = TyScheme.get tys |> snd |> GTy.ub |> R.any_args in
     (* A function that fails and is then bound at its C signature reports
        twice -- the failure, then [Fallback]. Folding the pair is what tells a
        substituted signature from a real inference. [timed_out] is TypR's own
@@ -527,6 +530,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
            ("calls", R.L calls) ; ("status", R.S status) ; ("header_kind", opt_s hdr) ;
            ("type", opt_s (Option.map pp_tys ty)) ;
            ("degenerate", R.B (match ty with Some t -> degenerate t | None -> false)) ;
+           ("any_args", R.L (match ty with Some t -> any_args t | None -> [])) ;
            ("error_title", opt_s (Option.map fst err)) ;
            ("error_detail", opt_s (Option.bind err snd)) ;
            ("elapsed_sec", R.F elapsed) ]) ;
@@ -874,7 +878,10 @@ let run opts root =
                     | _, Some _ -> R.N)) ;
                   ("bound", R.B (bound <> None)) ;
                   ("r_type", opt_s (Option.map r_type d)) ;
-                  ("degenerate", R.B false) ] ;
+                  ("degenerate", R.B false) ;
+                  (* The R side passes these arguments as they are: they are
+                     typed [any] where the C routine's are. *)
+                  ("any_args", R.L (match native with Some t -> R.any_args t | None -> [])) ] ;
               (match bound with
                | None ->
                  Format.printf "%s: no native type available@.@." r_name ;
@@ -897,7 +904,8 @@ let run opts root =
                    (match result with Error r -> R.S (Link.string_of_reject r) | Ok _ -> R.N)) ;
                   ("bound", R.B (Result.is_ok result)) ;
                   ("r_type", (match result with Ok ty -> R.S (pp_ty ty) | Error _ -> R.N)) ;
-                  ("degenerate", R.B (match result with Ok ty -> R.degenerate ty | Error _ -> false)) ] ;
+                  ("degenerate", R.B (match result with Ok ty -> R.degenerate ty | Error _ -> false)) ;
+                  ("any_args", R.L (match result with Ok ty -> R.any_args ty | Error _ -> [])) ] ;
               match result with
               | Error _ ->
                 Format.printf "%s: no native type available@.@." r_name ;
