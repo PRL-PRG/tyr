@@ -1,0 +1,79 @@
+
+===== double_it
+inferred: ∀`a. (((x: <@"*", ...>) -> (DBL | INT)<difftime> | LGL<>) & ((x: dbl1<~@"*", . | `a>) -> DBL1<~@"*", . | `a>) & ((x: dbl<~@"*", . | `a>) -> (DBL | INT)<~@"*", . | `a>))<>
+(x: dbl) -> dbl
+  accepted: (x: dbl) -> dbl
+(x: chr) -> chr
+  rejected: untypeable application of base::*
+    argument: @(vec, 2.<>)
+    failing call: base::*(NA, 2)
+(x: dbl) -> chr
+  accepted: (x: dbl) -> vec
+(x: any) -> any
+  rejected: untypeable application of base::*
+    argument: @(any, 2.<>)
+    failing call: base::*(new.env(), 2)
+(x: dbl
+  invalid: syntax error
+(x: nosuchtype) -> dbl
+  invalid: type of nosuchtype not found in the environment
+
+===== fact
+inferred: untypeable (unbound variable)
+(n: dbl) -> dbl
+  accepted: (n: dbl) -> dbl
+(n: dbl1) -> dbl1
+  rejected: untypeable application of fact
+    argument: @((DBL | INT)<Date> | (DBL | INT)<POSIXt, POSIXct> | (DBL | INT)<difftime> | DBL1<~@"-", ...> | LGL<>)
+    failing call: fact(structure(NA_integer_, class = "Date"))
+
+===== first
+inferred: ∀'a,'b. (((x: <@"[[", ...>) -> any) & ((x: v('b)<~@"[[", ...>) -> v1('b)<>) & ((x: { 'a }<~@"[[", ...>) -> 'a))<>
+(x: chr) -> chr
+  rejected: untypeable coercion
+    expected: vec
+    given: any
+    expression may be: new.env()
+(x: list) -> any
+  accepted: (x: list) -> any
+
+===== shout
+inferred: (((s: vec) -> CHR<>) & ((s: vec1) -> CHR1<>))<>
+(s: chr) -> chr
+  accepted: (s: vec) -> vec
+(s: dbl) -> chr
+  accepted: (s: dbl) -> vec
+
+===== wrong
+inferred: untypeable (untypeable application of base::toupper)
+(x: any) -> chr
+  rejected: untypeable application of base::toupper
+    argument: @(list<>)
+    failing call: base::toupper(list())
+(x: any) -> any
+  rejected: untypeable application of base::toupper
+    argument: @(list<>)
+    failing call: base::toupper(list())
+
+===== pick
+inferred: ∀'a,'b. (((flag: any, a: 'b, b: 'a) -> 'a | 'b) & ((flag: ff, a: 'b, b: 'a) -> 'a) & ((flag: tt, a: 'b, b: 'a) -> 'b))<>
+(flag: lgl1, a: dbl, b: dbl) -> dbl
+  accepted: (flag: lgl1, a: dbl, b: dbl) -> dbl
+(flag: lgl1, a: 'a, b: 'a) -> 'a
+  accepted: ∀'a. (flag: lgl1, a: 'a, b: 'a) -> 'a
+
+===== count_na
+inferred: ((v: any) -> INT1<>)<>
+(v: any) -> int1
+  accepted: (v: any) -> int1  [any: v]
+(v: vec) -> INT1
+  accepted: (v: vec) -> INT1
+
+===== mutual_a
+inferred: untypeable (unbound variable)
+(x: any) -> any
+  rejected: unbound variable
+    name: mutual_b
+
+===== double_it, with a limit of a microsecond
+timeout (1e-06 s)

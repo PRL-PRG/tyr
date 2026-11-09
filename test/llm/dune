@@ -15,3 +15,18 @@
  (name llm_call)
  (modules llm_call)
  (libraries llm yojson))
+
+; ===== Signature checking =====
+; The tool the model gets: definitions of signatures.R checked against
+; hand-written signatures, after the base R prelude (Rsem's sigs/base.R).
+
+(subdir
+ prelude
+ (copy_files
+  (files %{project_root}/Rsem/sigs/base.R)))
+
+(test
+ (name signature_check_test)
+ (modules signature_check_test)
+ (deps prelude/base.R signatures.R)
+ (libraries tyr rsem.lang mlsem))
