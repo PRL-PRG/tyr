@@ -8,49 +8,49 @@
 ===== prelude prelude/base.R =====
 
 ===== packages/known-issues/R/issues.R =====
-na_lgl: (LGL1 \ ^LGL1)<> with {  }
+na_lgl: (LGL1 \ ^LGL1)<>
 
-na_int: (INT1 \ ^INT1)<> with {  }
+na_int: (INT1 \ ^INT1)<>
 
-na_real: (DBL1 \ ^DBL1)<> with {  }
+na_real: (DBL1 \ ^DBL1)<>
 
-na_cplx: (CLX1 \ ^CLX1)<> with {  }
+na_cplx: (CLX1 \ ^CLX1)<>
 
-na_chr: na_string<> with {  }
+na_chr: na_string<>
 
-nan: DBL1<> with {  }
+nan: DBL1<>
 
-forward_dots: (((x: vec) -> CHR<>) & ((x: vec1) -> CHR1<>))<> with {  }
+forward_dots: (((x: vec) -> CHR<>) & ((x: vec1) -> CHR1<>))<>
 
 annotated: (x: dbl) -> dbl
 
 .dot_helper: (x: dbl) -> dbl
 
-uses_dot_helper: (() -> dbl)<> with {  }
+uses_dot_helper: (() -> dbl)<>
 
-uses_dot_global: (() -> CHR1)<> with {  }
+uses_dot_global: (() -> CHR1)<>
 
-uses_dot_machine: (() -> DBL1)<> with {  }
+uses_dot_machine: (() -> DBL1)<>
 
 powered: ∀`a. (((x: dbl1<. | `a>) -> DBL1<. | `a>) & ((x: dbl<. | `a>) ->
- DBL<. | `a>))<> with {  }
+ DBL<. | `a>))<>
 
 structured: ∀'a,'b. (((x: any) -> any) & ((x: v('b)) -> v('b)) & ((x: { 'a }) ->
- { 'a }))<> with {  }
+ { 'a }))<>
 
 dot_labelled: (.Data: dbl, .f: vec) -> dbl
 
-uses_dot_labelled: (() -> dbl)<> with {  }
+uses_dot_labelled: (() -> dbl)<>
 
-for_break: ∀'a. ((x: 'a) -> 'a)<> with {  }
+for_break: ∀'a. ((x: 'a) -> 'a)<>
 
-for_next: ∀'a. ((x: 'a) -> 'a)<> with {  }
+for_next: ∀'a. ((x: 'a) -> 'a)<>
 
-while_break: ∀'a. ((x: 'a) -> 'a)<> with {  }
+while_break: ∀'a. ((x: 'a) -> 'a)<>
 
-for_break_cond: (() -> DBL1 | INT1)<> with {  }
+for_break_cond: (() -> DBL1 | INT1)<>
 
-for_nested: (() -> DBL1 | INT1)<> with {  }
+for_nested: (() -> DBL1 | INT1)<>
 
 cache: {  }<>
 
@@ -58,23 +58,23 @@ tyr: skipping definition fill_cache (Invalid_argument("Cannot assign to an immut
 
 acache: {  } | { a: dbl1 }
 
-fill_acache: (() -> null)<> with {  }
+fill_acache: (() -> null)<>
 
 .symbols: {  } | { tick: CHR1 }
 
 .onLoad: (libname: CHR1, pkgname: CHR1) -> null
 
-blk: 1.<> with {  }
+blk: 1.<>
 
-u: 1.<> with {  }
+u: 1.<>
 
-use_u: (() -> 1.<> with {  })<> with {  }
+use_u: (() -> 1.<>)<>
 
 _: null
 
-z: (1...2.)<> with {  }
+z: 1.<> | 2.<>
 
-use_z: (() -> (1...2.)<> with {  })<> with {  }
+use_z: (() -> 1.<> | 2.<>)<>
 
 _: null
 
@@ -82,9 +82,9 @@ i: DBL1 | INT1
 
 w: DBL1 | INT1
 
-use_w: (() -> DBL1 | INT1)<> with {  }
+use_w: (() -> DBL1 | INT1)<>
 
-use_i: (() -> DBL1 | INT1)<> with {  }
+use_i: (() -> DBL1 | INT1)<>
 
 ablk: dbl
 
@@ -92,20 +92,21 @@ fblk: Untypeable: untypeable coercion
 Line 115, characters 21-26
 expected: dbl1
 given: (DBL | INT)<difftime> | DBL1<~@"+", ...> | LGL<> | dbl<Date, ...> | <POSIXt, ...>
+expression may be: structure(new.env(), class = "POSIXt")
 
 use_fblk: Untypeable: unbound variable
 Line 118, characters 23-27
 name: fblk
 
-counter: (() -> DBL1<>)<> with {  }
+counter: (() -> DBL1<>)<>
 
 leaked: Untypeable: unbound variable
 Line 125, characters 21-24
 name: afn
 
-nchar_of_scalar: (() -> INT1<>)<> with {  }
+nchar_of_scalar: (() -> INT1<>)<>
 
-three: (() -> CHR<>)<> with {  }
+three: (() -> CHR<>)<>
 
 unbound_alone: Untypeable: unbound variable
 Line 143, characters 29-41
@@ -115,11 +116,11 @@ unbound_after_call: Untypeable: unbound variable
 Line 144, characters 52-64
 name: undefined_fn
 
-bound_after_call: ((x: vec) -> INT1<>)<> with {  }
+bound_after_call: ((x: vec) -> INT1<>)<>
 
-defined_later: ∀'a. ((x: 'a) -> 'a)<> with {  }
+defined_later: ∀'a. ((x: 'a) -> 'a)<>
 
-uses_later: ∀'a. ((x: 'a) -> 'a)<> with {  }
+uses_later: ∀'a. ((x: 'a) -> 'a)<>
 
 mutual_b: Untypeable: unbound variable
 Line 154, characters 24-32
@@ -131,25 +132,30 @@ name: mutual_b
 
 blame_second: Untypeable: untypeable application of base::toupper
 Line 163, characters 46-62
-argument: @({ 1.<> with {  } }<>)
+argument: @({ 1.<> }<>)
+failing call: base::toupper(list())
 
 blame_branch: Untypeable: untypeable application of base::toupper
 Line 164, characters 57-73
-argument: @({ 1.<> with {  } }<>)
+argument: @({ 1.<> }<>)
+failing call: base::toupper(list())
 
 blame_arity: Untypeable: untypeable application of base::nchar
 Line 165, characters 46-63
 argument: @('x & vec, 'x & vec, 'x & vec, 'x & vec)
+failing call: base::nchar(NA, NA, NA, NA)
 
 cb_ty: Untypeable: untypeable coercion
 Line 176, characters 9-26
 expected: (a: dbl1) --> dbl1
 given: ((a: 'a & <@"+", ...>) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: 'a & dbl1<~@"+", . | `I82>) --> DBL1<~@"+", . | `I82>) & ((a: 'a & ((DBL | dbl & v('I798))<~@"+", . | `I82> | dbl1<~@"+", . | `I82>)) --> (INT | (DBL | (DBL | INT) & v('I798)))<~@"+", . | `I82>)
+expression may be: <fun>
 
 cb_sig: Untypeable: untypeable coercion
 Line 179, characters 22-27
 expected: dbl1
 given: (DBL | INT)<difftime> | DBL1<~@"+", ...> | LGL<> | dbl<Date, ...> | <POSIXt, ...>
+expression may be: structure(new.env(), class = "POSIXt")
 
 tyr: skipping definition set_cb_sig (Invalid_argument("Cannot assign to an immutable variable."))
 
@@ -157,4 +163,5 @@ holder: Untypeable: untypeable coercion
 Line 184, characters 24-29
 expected: dbl1
 given: (DBL | INT)<difftime> | DBL1<~@"+", ...> | LGL<> | dbl<Date, ...> | <POSIXt, ...>
+expression may be: structure(new.env(), class = "POSIXt")
 

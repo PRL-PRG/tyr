@@ -12,7 +12,8 @@ _: null
 
 re_match: Untypeable: untypeable application of base::regexpr
 Line 46, characters 11-51
-argument: @('pattern & CHR, CHR<>, perl: tt<> with {  }, ...: ('_ell, empty? | `_ell))
+argument: @('pattern & CHR, CHR<>, perl: tt<>, ...: ('_ell, empty? | `_ell))
+failing call: base::regexpr(NA_character_, NA_character_, perl = TRUE)
 
 re_match_all1: Untypeable: unbound variable
 Line 114, characters 11-20

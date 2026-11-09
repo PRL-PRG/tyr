@@ -36,20 +36,23 @@ _: null
 
 praise_parts: { adjective: CHR<>, adverb: CHR<>, adverb_manner: CHR<>, created: CHR<>, creating: CHR<>, exclamation: CHR<>, rpackage: CHR<> }<>
 
-template_pattern: "\\\\$\\\\{([^\\\\}]+)\\\\}"<> with {  }
+template_pattern: "\\\\$\\\\{([^\\\\}]+)\\\\}"<>
 
-is_template: (((x: vec) -> LGL<>) & ((x: vec1) -> LGL1<>))<> with {  }
+is_template: (((x: vec) -> LGL<>) & ((x: vec1) -> LGL1<>))<>
 
-capitalize: (((x: vec) -> CHR<>) & ((x: vec1) -> CHR1<>))<> with {  }
+capitalize: (((x: vec) -> CHR<>) & ((x: vec1) -> CHR1<>))<>
 
 match_case_sub: (((pattern: vec1, part: vec, replacement: vec1, text: vec) -> CHR<>) &
- ((pattern: vec1, part: vec, replacement: vec1, text: vec1) ->
- CHR1<>))<> with {  }
+ ((pattern: vec1, part: vec, replacement: vec1, text: vec1) -> CHR1<>))<>
 
 replace_one_template: Untypeable: untypeable application
 Line 89, characters 2-327683
 function: ((pattern: vec1, part: vec, replacement: vec1, text: vec) --> CHR<>) & ((pattern: vec1, part: vec, replacement: vec1, text: vec1) --> CHR1<>)
 argument: @(CHR<>, CHR<>, CHR1, 'template & vec)
+argument (not in the domain) may be: (NA_character_,
+                                      NA_character_,
+                                      NA_character_,
+                                      NA)
 
 praise: Untypeable: unbound variable
 Line 62, characters 16-36

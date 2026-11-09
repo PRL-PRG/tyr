@@ -37,26 +37,30 @@ name: format_num
 format_num: Untypeable: untypeable projection
 Line 13, characters 4-9
 argument: null | 'I573
+argument may be: new.env()
 
 
 ===== packages/prettyunits/R/rounding.R =====
 pretty_round: Untypeable: untypeable application of base::as.character
 Line 29, characters 26-54
 argument: @(any)
+failing call: base::as.character(new.env())
 
 pretty_signif: Untypeable: untypeable application of base::as.character
 Line 93, characters 24-52
 argument: @(any)
+failing call: base::as.character(new.env())
 
 
 ===== packages/prettyunits/R/p-value.R =====
 pretty_p_value: Untypeable: untypeable application of base::-
 Line 21, characters 15-36
 argument: @(dbl<. | `I117>)
+failing call: base::-(NA)
 
 
 ===== packages/prettyunits/R/pretty-package.R =====
-_: "_PACKAGE"<> with {  }
+_: "_PACKAGE"<>
 
 
 ===== packages/prettyunits/R/xsizes-docs.R =====
@@ -73,6 +77,7 @@ name: format_bytes
 format_bytes: Untypeable: untypeable projection
 Line 13, characters 4-9
 argument: null | 'I1217
+argument may be: new.env()
 
 
 ===== packages/prettyunits/R/xtime-ago.R =====
