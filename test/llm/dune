@@ -1,0 +1,17 @@
+; ===== LLM client =====
+; The translation of conversations to and from the two API formats, on fixed
+; replies: no request is made.
+
+(test
+ (name llm_test)
+ (modules llm_test)
+ (libraries llm yojson unix))
+
+; One conversation with a real model, by hand (not part of runtest):
+;   dune exec test/llm/llm_call.exe -- einfra:glm-5.3
+; It needs the provider's API key (cf. Llm.Client.providers).
+
+(executable
+ (name llm_call)
+ (modules llm_call)
+ (libraries llm yojson))

@@ -12,7 +12,7 @@ USER root
 RUN apt-get update && apt-get install -y \
     build-essential curl bc git \
     libgmp-dev pkg-config \
-    libssl-dev \
+    libssl-dev libcurl4-openssl-dev \
     nodejs \
     && rm -rf /var/lib/apt/lists/*
 
@@ -46,11 +46,13 @@ RUN opam update --yes && eval $(opam env) && \
     opam pin add ppxlib 0.35.0 --yes --no-action && \
     # Everything the four projects need that opam knows about, explicitly:
     # rstt-repl wants menhir, rstt zarith, r-c-typing ppx_inline_test and
-    # (through its c-parser) atdgen; rstt's tests want ppx_expect; typr yojson;
+    # (through its c-parser) atdgen; rstt's tests want ppx_expect; typr yojson
+    # and curl (its LLM client; libcurl's development files come from apt
+    # above, hence --assume-depexts: opam asks for the GnuTLS variant);
     # CI's coverage job bisect_ppx.
-    opam install --yes --ignore-pin-depends \
+    opam install --yes --ignore-pin-depends --assume-depexts \
       ocamlfind dune cmdliner menhir zarith ppx_inline_test ppx_expect \
-      yojson atdgen atdgen-runtime bisect_ppx \
+      yojson curl atdgen atdgen-runtime bisect_ppx \
       sstt sstt-repl mlsem-types mlsem-common mlsem-system mlsem-lang mlsem
 
 # r-parser provides tree-sitter. Its opam file has empty build/install
