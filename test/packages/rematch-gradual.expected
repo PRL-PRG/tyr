@@ -10,10 +10,9 @@
 ===== packages/rematch/R/package.R =====
 _: null
 
-re_match: Untypeable: untypeable encoding
+re_match: Untypeable: untypeable application of base::regexpr
 Line 46, characters 11-51
-application of base::regexpr failed
-argument is of type @('pattern & CHR, CHR<>, perl: tt<> with {  }, ...: ('_ell, empty? | `_ell))
+argument: @('pattern & CHR, CHR<>, perl: tt<> with {  }, ...: ('_ell, empty? | `_ell))
 
 re_match_all1: ((match: any with { match.length: any, capture.start: dbl<~@"[", ...>, capture.length: dbl<~@"[", ...>, capture.names: vec
  | null, any }, text: vec) |

@@ -129,20 +129,17 @@ mutual_a: Untypeable: unbound variable
 Line 153, characters 24-32
 name: mutual_b
 
-blame_second: Untypeable: untypeable encoding
+blame_second: Untypeable: untypeable application of base::toupper
 Line 163, characters 46-62
-application of base::toupper failed
-argument is of type @({ 1.<> with {  } }<>)
+argument: @({ 1.<> with {  } }<>)
 
-blame_branch: Untypeable: untypeable encoding
+blame_branch: Untypeable: untypeable application of base::toupper
 Line 164, characters 57-73
-application of base::toupper failed
-argument is of type @({ 1.<> with {  } }<>)
+argument: @({ 1.<> with {  } }<>)
 
-blame_arity: Untypeable: untypeable encoding
+blame_arity: Untypeable: untypeable application of base::nchar
 Line 165, characters 46-63
-application of base::nchar failed
-argument is of type @('x & vec, 'x & vec, 'x & vec, 'x & vec)
+argument: @('x & vec, 'x & vec, 'x & vec, 'x & vec)
 
 cb_ty: Untypeable: untypeable coercion
 Line 176, characters 9-26

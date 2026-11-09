@@ -77,7 +77,7 @@ type untypeable = { title : string ; loc : (int * int * int) option ; descr : st
 
 (* The description is normalized as it reads once printed: lines trimmed,
    blank ones dropped. *)
-let untypeable_of_error (err : Mlsem.System.Checker.error) pos =
+let untypeable_of_error (err : Mlsem.System.Error.t) pos =
   let open Mlsem.Common in
   let loc =
     if pos = Position.dummy then None
@@ -87,12 +87,12 @@ let untypeable_of_error (err : Mlsem.System.Checker.error) pos =
       Some (Position.line start, c1, c2)
   in
   let descr =
-    Option.bind err.descr (fun d ->
+    Option.bind (Lang.Error.descr err) (fun d ->
       match String.split_on_char '\n' d |> List.map String.trim |> List.filter (( <> ) "") with
       | [] -> None
       | ls -> Some (String.concat "\n" ls))
   in
-  { title = err.title ; loc ; descr }
+  { title = Lang.Error.title err ; loc ; descr }
 
 (* The name an [unbound variable] error is about: its descr is [name: <id>]. *)
 let unbound_name (u : untypeable) =

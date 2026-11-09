@@ -28,10 +28,9 @@ scale: (((x: vec | null, a: vec | null) -> DBL<>) & ((x: vec1, a: vec | null) ->
 
 scaled_ok: ((x: vec | null) -> LGL1<>)<> with {  }
 
-wrong_flag: Untypeable: untypeable encoding
+wrong_flag: Untypeable: untypeable application of .Fortran.F_scale[4]
 Line 10, characters 2-56
-application of .Fortran.F_scale[4] failed
-argument is of type @(0L<> with {  })
+argument: @(0L<> with {  })
 
 count: ((x: vec | null) -> INT<>)<> with {  }
 

@@ -40,22 +40,19 @@ argument: null | 'I573
 
 
 ===== packages/prettyunits/R/rounding.R =====
-pretty_round: Untypeable: untypeable encoding
+pretty_round: Untypeable: untypeable application of base::as.character
 Line 29, characters 26-54
-application of base::as.character failed
-argument is of type @(any)
+argument: @(any)
 
-pretty_signif: Untypeable: untypeable encoding
+pretty_signif: Untypeable: untypeable application of base::as.character
 Line 93, characters 24-52
-application of base::as.character failed
-argument is of type @(any)
+argument: @(any)
 
 
 ===== packages/prettyunits/R/p-value.R =====
-pretty_p_value: Untypeable: untypeable encoding
+pretty_p_value: Untypeable: untypeable application of base::-
 Line 21, characters 15-36
-application of base::- failed
-argument is of type @(dbl<. | `I117>)
+argument: @(dbl<. | `I117>)
 
 
 ===== packages/prettyunits/R/pretty-package.R =====
