@@ -36,7 +36,7 @@ name: format_num
 ===== packages/prettyunits/R/numbers.R =====
 format_num: Untypeable: untypeable projection
 Line 13, characters 4-9
-argument: null | 'I573
+argument: null | 'I581
 argument may be: new.env()
 
 
@@ -76,7 +76,7 @@ name: format_bytes
 ===== packages/prettyunits/R/sizes.R =====
 format_bytes: Untypeable: untypeable projection
 Line 13, characters 4-9
-argument: null | 'I1217
+argument: null | 'I1225
 argument may be: new.env()
 
 

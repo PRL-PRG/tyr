@@ -33,7 +33,7 @@ Line 10, characters 2-56
 argument: @(0L<>)
 failing call: .Fortran.F_scale[4](0L)
 
-count: ((x: vec | null) -> INT<>)<>
+count: ((x: vec | null) -> INT1<>)<>
 
 count_lgl: ((x: vec | null) -> LGL1<>)<>
 

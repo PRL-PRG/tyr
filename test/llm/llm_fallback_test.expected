@@ -193,7 +193,7 @@ It took longer than 20 s.
 ===== fact: a rejection, then an accepted signature
   -> rejected: untypeable application of fact
      argument: @((DBL | INT)<Date> | (DBL | INT)<POSIXt, POSIXct> | (DBL | INT)<difftime> | DBL1<~@"-", ...> | LGL<>)
-     failing call: fact(structure(NA_integer_, class = "difftime"))
+     failing call: fact(NA)
   -> accepted: (n: dbl) -> dbl
 typed: (n: dbl) -> dbl (checked as (n: dbl) -> dbl)
 turns 3, checks 2, tokens 300 in, 30 out
