@@ -1,0 +1,259 @@
+===== The system prompt (short syntax)
+
+You give types to R functions, for a set-theoretic type checker for R. Its
+inference failed on one function definition, or took too long. Your task is
+to find a signature of that function that the checker accepts.
+
+You have one tool, `check_type`. It checks the definition against a
+signature and answers:
+- `accepted: <type>`: the definition has this type;
+- `rejected: ...`: it does not, with the reason and often a witness: a value
+  or a call for which the definition fails;
+- `invalid signature: ...`: the signature does not parse, or names an
+  unknown type.
+
+Give the tool the type only, such as `(x: dbl, n: int1?) -> CHR`, not the
+function's name.
+
+## How to choose the type
+
+1. **If the code checks its arguments, follow the check.**
+   `stopifnot(is.numeric(x))` is `DBL | INT`, `match.arg(style)` is `CHR?`,
+   `inherits(x, "difftime")` is `<difftime, ...>`, `length(x) == 1L` makes it
+   a scalar (`X1`).
+2. **Otherwise take the essential property** the body depends on, and stop
+   there. Arithmetic on `x`: `dbl`. Indexing and `paste`: `vec`. Passed
+   straight to `.Call`: `DBL`.
+3. **Never narrower than what the function accepts.** Between two equally
+   good candidates, take the wider one.
+4. **Be precise about the result**: an `any` result says nothing.
+5. **`any` is a last resort**, for a parameter that is really unconstrained.
+   A signature whose parameters and result are all `any` is refused.
+
+Read the witnesses of the rejections: they show which values make the
+definition fail, and so which types are too wide. A parameter's type says
+what callers may pass: `empty` (no value at all) is not one, and `NA` is not
+a type.
+
+When a rejection says it is the error inference reported, the failure does
+not depend on the signature: it is in the body, or in a function the body
+calls. No signature will be accepted: give up.
+
+## How to finish
+
+You have at most 4 turns: each of your messages is a turn, and
+may check several signatures at once.
+
+- Once a signature you are satisfied with is accepted, answer with one line:
+  `DONE: <the accepted signature>`.
+- If no signature can work (the function always fails, or the failure comes
+  from a function it calls, not from its own code), answer with one line:
+  `GIVE UP: <one sentence saying why>`.
+
+# The type language
+
+A type is a set of R values; subtyping is set inclusion.
+
+## Algebra
+
+`any` (every value), `empty` (no value), `T | U` (union), `T & U`
+(intersection), `T \ U` (difference), `~T` (negation), `(T)` (grouping).
+
+## Atomic vectors
+
+| Type | Values |
+|---|---|
+| `LGL`, `INT`, `DBL`, `CLX`, `CHR`, `RAW` | a vector of exactly that mode, any length |
+| `lgl`, `int`, `dbl`, `clx`, `chr`, `raw` | that mode and every mode R coerces to it: `raw < lgl < int < dbl < clx`, and `chr` above all |
+| `vec` | any atomic vector (a list is not one) |
+| `DBL1`, `dbl1`, `CHR1`, `vec1`, ... | the same, of length exactly 1 |
+
+- **`dbl` contains logicals and integers**: it is the right type for an
+  ordinary numeric parameter, since `f(1L)` and `f(TRUE)` work.
+- **`chr` is any atomic vector** (`chr1` is `vec1`): it says nothing. A
+  character vector is `CHR`, a string is `CHR1`.
+- `DBL` only where the exact storage type matters: a value passed to C code
+  (`.Call`), `typeof`-like reflection, or a result callers rely on.
+- Literals are scalar types: `42L`, `42.`, `"txt"`, `tt` (TRUE), `ff` (FALSE).
+- Every type contains `NA` except literals. `^` removes `NA`, and only from
+  scalars: `^DBL1`, `^LGL1` (= `tt | ff`). `^DBL` is an error.
+
+## Other values
+
+`null` (NULL; not a vector: a function that may return NULL needs `| null`),
+`env`, `sym` (a symbol), `lang` (a call, a formula), `externalptr`.
+
+## Lists
+
+`{ a: T, b: U }` (exactly the fields `a` and `b`), `{ a: T, U }` (field `a`,
+every other element of type `U`), `{ T }` (any number of `T`), `{ any }` (any
+list), `{ a: T? }` (`a` may be absent).
+
+## Classes and attributes
+
+A bare type allows any class and attributes. To restrict: `<cls>` (exactly
+class `cls`), `<cls, ...>` (at least `cls`), `<>` (no class), and
+`T with { dim: INT }` for other attributes. An S3 object of class `foo`:
+`<foo, ...>`, or `dbl & <difftime, ...>`.
+
+## Functions
+
+`(x: T, y: U?, ...: V) -> W`:
+- the parameters are the R function's formals, **same names, same order**;
+- `?` marks an optional parameter: every parameter with a default value, or
+  only used under `if (!missing(p))`, needs it;
+- `...: V` types the extra arguments (`...: any` if anything goes);
+- `->`, not `-->`.
+
+A parameter that is itself a function is typed by how it is called:
+`f: @(dbl) -> dbl` (called with one `dbl`), never `f: (x: dbl) -> dbl`.
+
+Several behaviours are an intersection of arrows, each in parentheses:
+`((x: dbl1) -> CHR1) & ((x: dbl) -> CHR)` (a scalar for a scalar, a vector
+for a vector).
+
+Type variables tie a result to an argument: `(x: 'a) -> 'a`,
+`(x: v('a)) -> v1('a)` (a vector of some mode to a scalar of the same mode),
+`(X: { 'a }) -> { 'a }`.
+
+## Not the type language
+
+There is no `numeric`, `character`, `logical`, `integer`, `list<T>`, `T[]`,
+`NULL` (it is `null`) or `TRUE` (it is `tt`).
+
+## Examples
+
+```
+(x: CHR1) -> null
+(bytes: DBL | INT, style: CHR?) -> CHR
+(x: dbl, minval: dbl1?) -> CHR
+(x: dbl, digits: dbl?, sci_range: dbl1?, sci_sep: CHR1?) -> CHR
+(date: <POSIXct, POSIXt, ...>, format: CHR?) -> CHR
+(bytes: DBL | INT, smallest_unit: CHR1?) -> { amount: DBL, unit: CHR, negative: LGL }<data.frame>
+```
+
+===== The prompt of fact, with every part
+
+Find a signature of `fact`.
+
+## The definition (signatures.R)
+
+```r
+fact <- function(n) ...
+```
+
+## Why inference failed
+
+unbound variable
+name: fact
+
+## The types of the names it uses
+
+- `*`: `((x: dbl1, y: dbl1) -> dbl1) & ...`
+
+## Its documentation (man/fact.Rd)
+
+```
+\name{fact}
+\alias{fact}
+\title{Factorial}
+```
+
+## Where the package calls it
+
+```r
+use.R:3: fact(5)
+```
+
+## Definitions of the same file, with the types the checker found
+
+```r
+double_it <- function(x) x * 2
+```
+Type: `(x: dbl) -> dbl`
+
+===== The prompt of fact, after a timeout, source only
+
+Find a signature of `fact`.
+
+## The definition (signatures.R)
+
+```r
+fact <- function(n) ...
+```
+
+## Why inference failed
+
+It took longer than 20 s.
+
+===== fact: a rejection, then an accepted signature
+  -> rejected: untypeable application of fact
+     argument: @((DBL | INT)<Date> | (DBL | INT)<POSIXt, POSIXct> | (DBL | INT)<difftime> | DBL1<~@"-", ...> | LGL<>)
+     failing call: fact(structure(NA_integer_, class = "difftime"))
+  -> accepted: (n: dbl) -> dbl
+typed: (n: dbl) -> dbl (checked as (n: dbl) -> dbl)
+turns 3, checks 2, tokens 300 in, 30 out
+
+===== wrong: no signature fits: the model gives up
+  -> rejected: untypeable application of base::toupper
+     argument: @(list<>)
+     failing call: base::toupper(list())
+     note: this is the error inference reported. It does not depend on the signature: the failure is in the body, or in a function it calls.
+gave up: toupper is always given a list, which it rejects.
+turns 2, checks 1, tokens 200 in, 20 out
+
+===== count_na: a signature of any only is refused, a precise one is accepted
+  -> rejected: too imprecise: every parameter and the result are `any`. Give a more precise signature.
+  -> accepted: (v: any) -> INT1
+     note: typed `any`: v
+typed: (v: any) -> INT1 (checked as (v: any) -> INT1)
+turns 3, checks 2, tokens 300 in, 30 out
+
+===== double_it: an invalid signature and a valid one in one turn; the final text names none
+  -> invalid signature: syntax error
+  -> accepted: (x: dbl) -> dbl
+typed: (x: dbl) -> dbl (checked as (x: dbl) -> dbl)
+turns 2, checks 2, tokens 200 in, 20 out
+
+===== double_it: two accepted signatures: DONE names the first
+  -> accepted: (x: dbl) -> dbl
+  -> accepted: (x: dbl) -> vec
+typed: (x: dbl) -> dbl (checked as (x: dbl) -> dbl)
+turns 2, checks 2, tokens 200 in, 20 out
+
+===== wrong: the turn limit: the model is asked to conclude, and gives up
+  -> rejected: untypeable application of base::toupper
+     argument: @(list<>)
+     failing call: base::toupper(list())
+     note: this is the error inference reported. It does not depend on the signature: the failure is in the body, or in a function it calls.
+gave up: toupper is given a list whatever x is.
+turns 3, checks 2, tokens 300 in, 30 out
+
+===== wrong: the turn limit: asked to conclude, the model checks again (not run)
+gave up: the model gave no answer
+turns 2, checks 1, tokens 200 in, 20 out
+
+===== count_na: the turn limit with a signature accepted: no question asked
+typed: (v: any) -> INT1 (checked as (v: any) -> INT1)
+turns 1, checks 1, tokens 100 in, 10 out
+
+===== double_it: the model runs out of output tokens
+gave up: the model ran out of output tokens (4096) before answering
+turns 1, checks 0, tokens 100 in, 10 out
+
+===== fact: the API fails after an accepted signature: it is kept
+  -> accepted: (n: dbl) -> dbl
+typed: (n: dbl) -> dbl (checked as (n: dbl) -> dbl)
+turns 1, checks 1, tokens 100 in, 10 out
+
+===== wrong: the API fails with nothing accepted
+  -> rejected: untypeable application of base::toupper
+     argument: @(list<>)
+     failing call: base::toupper(list())
+     note: this is the error inference reported. It does not depend on the signature: the failure is in the body, or in a function it calls.
+error: script: HTTP 503: overloaded
+turns 1, checks 1, tokens 100 in, 10 out
+
+===== double_it: a signature claimed but never checked
+gave up: claimed a signature that was not accepted: (x: dbl) -> dbl
+turns 1, checks 0, tokens 100 in, 10 out

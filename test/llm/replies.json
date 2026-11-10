@@ -1,0 +1,57 @@
+[
+ {
+  "choices": [
+   {
+    "finish_reason": "tool_calls",
+    "message": {
+     "role": "assistant",
+     "content": null,
+     "tool_calls": [
+      {
+       "id": "call_1",
+       "type": "function",
+       "function": {
+        "name": "check_type",
+        "arguments": "{\"signature\": \"(n: dbl1) -> dbl1\"}"
+       }
+      }
+     ]
+    }
+   }
+  ],
+  "usage": {
+   "prompt_tokens": 500,
+   "completion_tokens": 20
+  }
+ },
+ {
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "message": {
+     "role": "assistant",
+     "content": "DONE: (n: dbl1) -> dbl1"
+    }
+   }
+  ],
+  "usage": {
+   "prompt_tokens": 600,
+   "completion_tokens": 10
+  }
+ },
+ {
+  "choices": [
+   {
+    "finish_reason": "stop",
+    "message": {
+     "role": "assistant",
+     "content": "GIVE UP: toupper is always given a list, which it rejects."
+    }
+   }
+  ],
+  "usage": {
+   "prompt_tokens": 400,
+   "completion_tokens": 15
+  }
+ }
+]

@@ -5,7 +5,7 @@
 (test
  (name llm_test)
  (modules llm_test)
- (libraries llm yojson unix))
+ (libraries llm yojson unix str))
 
 ; One conversation with a real model, by hand (not part of runtest):
 ;   dune exec test/llm/llm_call.exe -- einfra:glm-5.3
@@ -30,3 +30,39 @@
  (modules signature_check_test)
  (deps prelude/base.R signatures.R)
  (libraries tyr rsem.lang mlsem))
+
+; ===== The fallback's conversation =====
+; A scripted model and the real checker, on signatures.R.
+
+(test
+ (name llm_fallback_test)
+ (modules llm_fallback_test)
+ (deps prelude/base.R signatures.R)
+ (libraries tyr llm rsem.lang mlsem yojson))
+
+; ===== tyr with the fallback, end to end =====
+; A scripted model (replies.json) gives the recursive fact of pkg/ a
+; signature; fact5, which calls it, types only when that signature is bound,
+; hence the two runs. The prelude is reduced to the operators fact uses.
+
+(rule
+ (alias runtest)
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  mini-prelude.R
+  replies.json
+  (source_tree pkg))
+ (action
+  (with-stdout-to
+   llm_e2e.output
+   (progn
+    (echo "##### bound\n")
+    (run %{exe:../../bin/main.exe} --timeout 20 --prelude mini-prelude.R
+     --llm script:replies.json pkg)
+    (echo "\n##### --llm-no-bind\n")
+    (run %{exe:../../bin/main.exe} --timeout 20 --prelude mini-prelude.R
+     --llm script:replies.json --llm-no-bind pkg)))))
+
+(rule
+ (alias runtest)
+ (action (diff llm_e2e.expected llm_e2e.output)))

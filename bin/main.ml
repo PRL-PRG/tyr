@@ -5,6 +5,9 @@ let usage =
   \      [--call-graph FILE]\n\
   \      [--fuzz-runner CMD [--fuzz-harness DIR] [--fuzz-samples N] [--fuzz-seed N]\n\
   \       [--fuzz-dir DIR] [--fuzz-call-timeout SECONDS]]\n\
+  \      [--llm PROVIDER:MODEL [--llm-context PARTS] [--llm-syntax short|full]\n\
+  \       [--llm-max-turns N] [--llm-max-tokens N] [--llm-no-bind] [--llm-cache DIR]\n\
+  \       [--llm-transcript FILE]]\n\
   \      [-I DIR] <package-directory>"
 
 let deps_only = ref false
@@ -29,6 +32,14 @@ let fuzz_samples = ref 8
 let fuzz_seed = ref 1
 let fuzz_dir = ref "fuzz-results"
 let fuzz_call_timeout = ref 5.
+let llm = ref None
+let llm_context = ref None
+let llm_syntax = ref "short"
+let llm_max_turns = ref 4
+let llm_max_tokens = ref 16384
+let llm_bind = ref true
+let llm_cache = ref None
+let llm_transcript = ref None
 
 let speclist =
   [ ("--deps", Arg.Set deps_only,
@@ -66,7 +77,24 @@ let speclist =
     ("--fuzz-dir", Arg.Set_string fuzz_dir,
      "DIR  Where the samples and results files go (default fuzz-results)") ;
     ("--fuzz-call-timeout", Arg.Set_float fuzz_call_timeout,
-     "SECONDS  Time limit of one call when fuzzing (default 5)") ]
+     "SECONDS  Time limit of one call when fuzzing (default 5)") ;
+    ("--llm", Arg.String (fun s -> llm := Some s),
+     "PROVIDER:MODEL  Ask this model for the R definitions inference fails on, in strict mode \
+      (providers: " ^ String.concat ", " Llm.Client.providers ^ ")") ;
+    ("--llm-context", Arg.String (fun s -> llm_context := Some s),
+     "PARTS  What the model gets, comma-separated, among source, error, callees, docs, \
+      callsites, examples (default source,error,callees)") ;
+    ("--llm-syntax", Arg.Symbol ([ "short" ; "full" ], fun s -> llm_syntax := s),
+     " How the type language is explained: a short reference (the default) or the full documents") ;
+    ("--llm-max-turns", Arg.Set_int llm_max_turns, "N  Turns per definition (default 4)") ;
+    ("--llm-max-tokens", Arg.Set_int llm_max_tokens,
+     "N  Output tokens per turn, reasoning included (default 16384)") ;
+    ("--llm-no-bind", Arg.Clear llm_bind,
+     "Do not bind the types the model finds for the definitions that follow") ;
+    ("--llm-cache", Arg.String (fun d -> llm_cache := Some d),
+     "DIR  Cache the model's replies there, and reuse them") ;
+    ("--llm-transcript", Arg.String (fun f -> llm_transcript := Some f),
+     "FILE  Write the conversations there (one JSON record per line)") ]
 
 let () =
   Printexc.record_backtrace true ;
@@ -98,7 +126,19 @@ let () =
         debug = !debug ; fallback_c_signature = fallback_on ; log_times = !log_times ;
         lambda_rec = !lambda_rec ;
         call_graph = !call_graph } in
+    let llm =
+      try
+        !llm |> Option.map (fun spec ->
+          { Tyr.Llm_fallback.client = Llm.Client.of_spec spec ;
+            context = (match !llm_context with
+              | Some s -> Tyr.Llm_fallback.parts_of_string s
+              | None -> Tyr.Llm_fallback.default_context) ;
+            syntax = (if !llm_syntax = "full" then Full else Short) ;
+            max_turns = max 1 !llm_max_turns ; max_tokens = max 256 !llm_max_tokens ;
+            bind = !llm_bind ; cache = !llm_cache ;
+            transcript = Option.map open_out !llm_transcript })
+      with Failure m | Sys_error m -> Printf.eprintf "tyr: --llm: %s\n" m ; exit 2 in
     Tyr.Pipeline.run
       { native ; prelude = !prelude ; include_dirs = !include_dirs ;
         timeout = !timeout ; gradual = !gradual ; deps_only = !deps_only ;
-        report = !report ; fuzz ; fallback_mode } root
+        report = !report ; fuzz ; fallback_mode ; llm } root

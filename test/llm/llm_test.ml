@@ -113,9 +113,48 @@ let () =
     | c -> Printf.printf "%s: %s, %s, model %s, %s\n" s c.provider c.base_url c.model
              (match c.format with Anthropic -> "anthropic"
                                 | Openai Max_tokens -> "openai/max_tokens"
-                                | Openai Max_completion_tokens -> "openai/max_completion_tokens")
+                                | Openai Max_completion_tokens -> "openai/max_completion_tokens"
+                                | Script -> "script")
     | exception Failure m -> Printf.printf "%s: %s\n" s m in
   List.iter spec [ "einfra:glm-5.3" ; "einfra:glm-5.3:high" ; "mistral:mistral-large-4" ;
                    "nowhere:x" ; "einfra" ; "einfra:" ; "local:qwen" ] ;
   Unix.putenv "TYR_LLM_BASE_URL" "http://localhost:11434/v1/" ;
-  List.iter spec [ "local:qwen" ; "einfra:glm-5.3" ]
+  List.iter spec [ "local:qwen" ; "einfra:glm-5.3" ; "script:replies.json" ; "script:" ] ;
+
+  section "Script" ;
+  let file = Filename.temp_file "llm_test" ".json" in
+  Out_channel.with_open_text file (fun oc -> output_string oc {|[
+    {"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": "one"}}]},
+    {"error": "the server is down"}
+  ]|}) ;
+  let script = Client.of_spec ("script:" ^ file) in
+  let ask () =
+    match Client.complete script (request [ User "hi" ]) with
+    | r -> Printf.printf "reply: %s\n" r.assistant.text
+    | exception Client.Error m ->
+      (* The file name is a temporary one. *)
+      print_endline ("error: " ^ Str.global_replace (Str.regexp_string file) "FILE" m) in
+  ask () ; ask () ; ask () ;
+  Sys.remove file ;
+
+  section "Cache" ;
+  (* Nothing listens on port 9: a request that reaches the network fails at
+     once, so a reply can only come from the cache. *)
+  Unix.putenv "TYR_LLM_BASE_URL" "http://127.0.0.1:9/v1" ;
+  let local = Client.of_spec ~retries:0 "local:m" in
+  let dir = Filename.concat (Filename.get_temp_dir_name ()) (Printf.sprintf "llm_cache_%d" (Unix.getpid ())) in
+  let req = request ~seed:3 [ User "cached?" ] in
+  let ask () =
+    match Client.complete ~cache:dir local req with
+    | r -> Printf.printf "reply: %s\n" r.assistant.text
+    | exception Client.Error _ -> print_endline "error: no server, no cached reply" in
+  ask () ;
+  let cached = Option.get (Client.cache_file dir local req) in
+  Printf.printf "cache file written: %b\n" (Sys.file_exists cached) ;
+  Sys.mkdir dir 0o755 ;
+  Out_channel.with_open_text cached (fun oc -> output_string oc {|
+    {"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": "from the cache"}}]}|}) ;
+  ask () ;
+  Printf.printf "another request, same file: %b\n"
+    (Client.cache_file dir local (request ~seed:4 [ User "cached?" ]) = Some cached) ;
+  Sys.remove cached ; Sys.rmdir dir

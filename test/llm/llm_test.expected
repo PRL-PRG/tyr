@@ -154,9 +154,22 @@ rate limited
 einfra:glm-5.3: einfra, https://llm.ai.e-infra.cz/v1, model glm-5.3, openai/max_tokens
 einfra:glm-5.3:high: einfra, https://llm.ai.e-infra.cz/v1, model glm-5.3:high, openai/max_tokens
 mistral:mistral-large-4: mistral: MISTRAL_API_KEY is not set
-nowhere:x: unknown LLM provider nowhere (one of: anthropic, openai, einfra, mistral, meta, openrouter, local)
+nowhere:x: unknown LLM provider nowhere (one of: anthropic, openai, einfra, mistral, meta, openrouter, local, script)
 einfra: einfra: expected provider:model
 einfra:: einfra:: no model
 local:qwen: local: TYR_LLM_BASE_URL is not set
 local:qwen: local, http://localhost:11434/v1, model qwen, openai/max_tokens
 einfra:glm-5.3: einfra, http://localhost:11434/v1, model glm-5.3, openai/max_tokens
+script:replies.json: script, replies.json, model replies.json, script
+script:: script:: no file
+
+===== Script =====
+reply: one
+error: script: the server is down
+error: FILE: no reply left
+
+===== Cache =====
+error: no server, no cached reply
+cache file written: false
+reply: from the cache
+another request, same file: false

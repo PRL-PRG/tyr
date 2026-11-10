@@ -1,0 +1,83 @@
+##### bound
+
+===== Native code =====
+
+
+===== R code =====
+
+
+===== prelude mini-prelude.R =====
+
+===== pkg/R/fact.R =====
+fact: Untypeable: unbound variable
+Line 3, characters 43-47
+name: fact
+
+fact: (n: dbl1) -> dbl1   [llm: script:replies.json]
+
+fact5: (() -> dbl1)<>
+
+wrong: Untypeable: untypeable application of base::toupper
+Line 9, characters 21-37
+argument: @(list)
+failing call: base::toupper(list())
+
+wrong: llm gave up: toupper is always given a list, which it rejects.
+
+uses_wrong: Untypeable: untypeable application of base::toupper
+Line 13, characters 33-49
+argument: @(list)
+failing call: base::toupper(list())
+
+uses_wrong: llm not tried: uses unbound wrong
+
+not_a_function: Untypeable: untypeable application of base::toupper
+Line 16, characters 18-34
+argument: @(list)
+failing call: base::toupper(list())
+
+not_a_function: llm not tried: not a function definition
+
+
+##### --llm-no-bind
+
+===== Native code =====
+
+
+===== R code =====
+
+
+===== prelude mini-prelude.R =====
+
+===== pkg/R/fact.R =====
+fact: Untypeable: unbound variable
+Line 3, characters 43-47
+name: fact
+
+fact: (n: dbl1) -> dbl1   [llm: script:replies.json]
+
+fact5: Untypeable: unbound variable
+Line 6, characters 20-24
+name: fact
+
+wrong: Untypeable: untypeable application of base::toupper
+Line 9, characters 21-37
+argument: @(list)
+failing call: base::toupper(list())
+
+wrong: llm gave up: toupper is always given a list, which it rejects.
+
+uses_wrong: Untypeable: untypeable application of base::toupper
+Line 13, characters 33-49
+argument: @(list)
+failing call: base::toupper(list())
+
+uses_wrong: llm not tried: uses unbound wrong
+
+not_a_function: Untypeable: untypeable application of base::toupper
+Line 16, characters 18-34
+argument: @(list)
+failing call: base::toupper(list())
+
+not_a_function: llm not tried: not a function definition
+

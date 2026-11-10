@@ -68,38 +68,56 @@ let degenerate ty =
   && Arrow.dnf content
      |> List.for_all (List.for_all (fun (_dom, codom) -> Ty.is_empty codom))
 
-(* The parameters of a function type that are typed [any] in at least one of
-   its arrows, in order: by name for an R function, whose domain is an
-   argument record, and by 1-based position for a native one, whose domain is
-   a C argument tuple (cf. [Link.arg_of_tuple]). Inference learned nothing
-   about them: often a smell, though a parameter the body never uses, or one
-   a function really accepts whatever it is, is rightly [any]. A type variable
-   is not [any], and neither is the [...] of an R function, which types the
-   extra arguments. *)
-let any_args ty =
+(* The arrows of a function type, each as its parameters (with whether each
+   is typed [any]) and its result: by name for an R function, whose domain is
+   an argument record, and by 1-based position for a native one, whose domain
+   is a C argument tuple (cf. [Link.arg_of_tuple]). A type variable is not
+   [any], and the [...] of an R function, which types the extra arguments, is
+   not a parameter here. [None] if [ty] is not a function type. *)
+let arrows ty =
   let content = if Ty.leq ty Rstt.Attr.any then Rstt.Attr.proj_content ty else ty in
-  if Ty.is_empty content || not (Ty.leq content Arrow.any) then []
+  if Ty.is_empty content || not (Ty.leq content Arrow.any) then None
   else
     let is_any t = Ty.leq Ty.any t in
     let field_any f =
       Rstt.Ty.F.get_descr f |> Rstt.Ty.O.get |> Rstt.Ty.O.Atom.get |> is_any in
-    let of_dom dom =
+    (* One list of parameters per way of reading the domain. *)
+    let params dom =
       if Ty.leq dom Rstt.Arg.any then
         (try Rstt.Arg.destruct dom with Invalid_argument _ -> [])
-        |> List.concat_map (function
+        |> List.filter_map (function
           | Rstt.Arg.DefSite a ->
-            a.pos_named @ a.named
-            |> List.filter_map (fun (n, f) -> if field_any f then Some n else None)
-          | Rstt.Arg.CallSite _ -> [])
+            Some (a.pos_named @ a.named |> List.map (fun (n, f) -> (n, field_any f)))
+          | Rstt.Arg.CallSite _ -> None)
       else
         Tuple.decompose dom |> fst
-        |> List.concat_map (fun (_arity, lines) -> lines |> List.concat_map (fun comps ->
-          comps |> List.mapi (fun i t -> if is_any t then Some (string_of_int (i + 1)) else None)
-          |> List.filter_map Fun.id))
+        |> List.concat_map (fun (_arity, lines) -> lines |> List.map (fun comps ->
+          comps |> List.mapi (fun i t -> (string_of_int (i + 1), is_any t))))
     in
+    Some (Arrow.dnf content |> List.concat_map (List.concat_map (fun (dom, codom) ->
+      params dom |> List.map (fun ps -> (ps, codom)))))
+
+(* The parameters of a function type that are typed [any] in at least one of
+   its arrows, in order (cf. [arrows]). Inference learned nothing about them:
+   often a smell, though a parameter the body never uses, or one a function
+   really accepts whatever it is, is rightly [any]. *)
+let any_args ty =
+  match arrows ty with
+  | None -> []
+  | Some arrows ->
     let names =
-      Arrow.dnf content |> List.concat_map (List.concat_map (fun (dom, _) -> of_dom dom)) in
+      arrows |> List.concat_map (fun (ps, _) ->
+        List.filter_map (fun (n, a) -> if a then Some n else None) ps) in
     List.fold_left (fun acc n -> if List.mem n acc then acc else n :: acc) [] names |> List.rev
+
+(* A function type that says nothing: in every arrow, every parameter is
+   [any] and so is the result. The LLM fallback refuses such signatures. *)
+let trivial ty =
+  match arrows ty with
+  | None | Some [] -> false
+  | Some arrows ->
+    arrows |> List.for_all (fun (ps, codom) ->
+      Ty.leq Ty.any codom && List.for_all snd ps)
 
 (* ===== The R side's errors ===== *)
 
