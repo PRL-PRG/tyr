@@ -198,7 +198,6 @@ turns 3, checks 2, tokens 300 in, 30 out
   -> rejected: untypeable application of base::toupper
      argument: @(list<>)
      failing call: base::toupper(list())
-     note: this is the error inference reported. It does not depend on the signature: the failure is in the body, or in a function it calls.
 gave up: toupper is always given a list, which it rejects.
 turns 2, checks 1, tokens 200 in, 20 out
 
@@ -225,7 +224,6 @@ turns 2, checks 2, tokens 200 in, 20 out
   -> rejected: untypeable application of base::toupper
      argument: @(list<>)
      failing call: base::toupper(list())
-     note: this is the error inference reported. It does not depend on the signature: the failure is in the body, or in a function it calls.
 gave up: toupper is given a list whatever x is.
 turns 3, checks 2, tokens 300 in, 30 out
 
@@ -250,9 +248,12 @@ turns 1, checks 1, tokens 100 in, 10 out
   -> rejected: untypeable application of base::toupper
      argument: @(list<>)
      failing call: base::toupper(list())
-     note: this is the error inference reported. It does not depend on the signature: the failure is in the body, or in a function it calls.
 error: script: HTTP 503: overloaded
 turns 1, checks 1, tokens 100 in, 10 out
+
+===== wrong: a turn of rejections with inference's own error ends the conversation
+gave up: every signature checked was rejected with inference's error (untypeable application of base::toupper): the failure does not depend on the signature
+turns 1, checks 2, tokens 100 in, 10 out
 
 ===== double_it: a signature claimed but never checked
 gave up: claimed a signature that was not accepted: (x: dbl) -> dbl

@@ -37,7 +37,7 @@ type options = {
      declared C signature (see [R_c_typing.Runner.fallback_mode]). *)
   fallback_mode : R_c_typing.Runner.fallback_mode ;
   (* Ask a language model for the R definitions inference fails on (see
-     {!Llm_fallback}). Strict mode only. *)
+     {!Llm_fallback}). *)
   llm : Llm_fallback.config option ;
 }
 
@@ -371,6 +371,32 @@ let callees_of ctx ~name (def : R_deps.def) =
     |> Option.map (fun tys -> (n, shorten 500 (Report.one_line TyScheme.pp_short tys))))
   |> List.filteri (fun i _ -> i < 40)
 
+(* The names a definition [name] needs that have no type in [ctx]: the
+   functions of the package it uses (called or passed around), and the
+   functions it calls, whoever defines them ([rlang::is_true] when the prelude
+   lacks it), but its own name and its local ones. In gradual mode, there is
+   none: an unbound name gets the dynamic type. The native calling
+   conventions ([.Call], ...) are tyr's business, not the prelude's. [def.uses]
+   includes local names: a local named like an unbound function of the
+   package rules a definition out too. *)
+let unbound_callees ctx ~name ~defined (def : R_deps.def) =
+  if !Driver.gradual then []
+  else
+    let unbound_here f = Driver.find ctx f = None in
+    let of_package =
+      StrSet.elements def.uses
+      |> List.filter (fun u -> u <> name && StrSet.mem u defined && unbound_here u) in
+    let called =
+      def.calls |> List.filter_map (fun (ns, f) ->
+        match ns with
+        | None when f = name || StrSet.mem f def.locals
+                    || R_deps.convention_of_name f <> None -> None
+        | None -> if unbound_here f then Some f else None
+        | Some ns ->
+          if MetaEnv.ns_find ns f ctx.Driver.tenv = None && unbound_here f
+          then Some (ns ^ "::" ^ f) else None) in
+    List.sort_uniq compare (of_package @ called)
+
 (* Type-check one R file. This is [Driver.process], with the error recovery a
    package scan needs: Rsem treats every [##] comment as a type annotation and
    fails on the ones it cannot parse, but real packages use [##] for ordinary
@@ -490,10 +516,10 @@ let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
        timed out, or is untypeable for any reason but an unbound name other
        than its own (a recursive definition is not bound in its own body).
        Among those, only function definitions that use no unbound name of the
-       package: one that does fails whatever its signature (a timeout can hide
-       that). Not an annotated definition either: its failure is against its
-       author's signature, which the model's must not replace. [def.uses] includes local names, so a local named like an
-       unbound function of the package also rules a definition out.
+       name: one that does fails whatever its signature, and inference may
+       have reported another error first, or timed out (cf.
+       [unbound_callees]). Not an annotated definition either: its failure is
+       against its author's signature, which the model's must not replace.
        [llm_skipped] says why one of them was not tried. *)
     let llm_candidate =
       match llm, def.name with
@@ -501,9 +527,7 @@ let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
                            && (status = "timeout"
                                || (status = "untypeable"
                                    && (error_name = None || error_name = Some n))) ->
-        let unbound =
-          StrSet.elements def.uses
-          |> List.filter (fun u -> u <> n && StrSet.mem u defined && Driver.find ctx u = None) in
+        let unbound = unbound_callees ctx ~name:n ~defined def in
         if annotated then Error "annotated: its own signature was checked"
         else if not (is_function_def past) then Error "not a function definition"
         else if unbound <> [] then Error ("uses unbound " ^ String.concat ", " unbound)
@@ -1100,10 +1124,10 @@ let run opts root =
         in
         let known n = StrSet.mem n known in
         let dotcode n = StrMap.find_opt n dotcode in
-        (* The LLM fallback runs in strict mode only. *)
+        (* The LLM fallback runs in either mode; in gradual mode, an unbound
+           name rules nothing out (cf. [unbound_callees]). *)
         let llm =
-          if opts.gradual then None
-          else opts.llm |> Option.map (fun llm ->
+          opts.llm |> Option.map (fun llm ->
             { llm ; root ; r_files = List.map (fun (f : r_file) -> f.path) files }) in
         List.fold_left (fun ctx f ->
           Format.printf "@.@{<bold>===== %s =====@}@." f.path ;

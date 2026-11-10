@@ -10,8 +10,9 @@
     the model is asked once more to conclude, so that it says why; out of
     turns otherwise, or when the API fails, the last accepted signature is
     kept. A signature whose parameters and result are all [any] is refused: it
-    says nothing. A rejection that repeats inference's error says so: no
-    signature can then help, and the model is told to give up.
+    says nothing. A rejection that repeats inference's error says so, since
+    no signature can then help; a turn whose checks all get it ends the
+    conversation.
 
     Inference's result is not touched: the pipeline reports the fallback's
     outcome next to it, and binds an accepted type for the definitions that
@@ -175,29 +176,33 @@ let same_error (u : Report.untypeable) = function
     u.title = i.title && first u.descr = first i.descr
   | None -> false
 
-(* The answer to one check, and the accepted signature it yields, if any.
-   [inference] is inference's error, if it reported one. *)
+(* The answer to one check, whether it is an error, the accepted signature it
+   yields if any, and whether it is a rejection with inference's error
+   ([inference], if it reported one). *)
 let answer ~check ?inference signature =
+  let plain (content, is_error, ok) = content, is_error, ok, false in
   match check signature with
   | Signature_check.Accepted a when trivial a ->
-    "rejected: too imprecise: every parameter and the result are `any`. \
-     Give a more precise signature.", true, None
+    plain ("rejected: too imprecise: every parameter and the result are `any`. \
+            Give a more precise signature.", true, None)
   | Signature_check.Accepted a ->
     let notes =
       (if a.any_args = [] then []
        else [ "note: typed `any`: " ^ String.concat ", " a.any_args ])
       @ (if a.degenerate then [ "note: this type says the function never returns" ] else []) in
-    String.concat "\n" (("accepted: " ^ a.printed) :: notes), false, Some (signature, a)
-  | Signature_check.Invalid m -> "invalid signature: " ^ m, true, None
+    plain (String.concat "\n" (("accepted: " ^ a.printed) :: notes), false, Some (signature, a))
+  | Signature_check.Invalid m -> plain ("invalid signature: " ^ m, true, None)
   | Signature_check.Rejected u ->
+    let same = same_error u inference in
     let note =
-      if same_error u inference then
+      if same then
         [ "note: this is the error inference reported. It does not depend on the \
            signature: the failure is in the body, or in a function it calls." ]
       else [] in
-    String.concat "\n" ((("rejected: " ^ u.title) :: Option.to_list u.descr) @ note), true, None
-  | Signature_check.Timeout s -> Printf.sprintf "checking took longer than %g s" s, true, None
-  | Signature_check.Failed m -> "the checker failed: " ^ m, true, None
+    String.concat "\n" ((("rejected: " ^ u.title) :: Option.to_list u.descr) @ note), true, None,
+    same
+  | Signature_check.Timeout s -> plain (Printf.sprintf "checking took longer than %g s" s, true, None)
+  | Signature_check.Failed m -> plain ("the checker failed: " ^ m, true, None)
 
 let shorten n s = if String.length s <= n then s else String.sub s 0 n ^ "..."
 
@@ -284,24 +289,39 @@ let run cfg ~complete ~check (i : input) =
         if last then []
         else r.assistant.tool_calls |> List.map (fun (c : tool_call) ->
           let signature = Yojson.Safe.Util.(member "signature" c.arguments |> to_string_option) in
-          let content, is_error, signature = match c.name, signature with
+          let content, is_error, signature, same = match c.name, signature with
             | "check_type", Some s ->
               incr checks ;
-              let content, is_error, ok = answer ~check ?inference s in
+              let content, is_error, ok, same = answer ~check ?inference s in
               Option.iter (fun a -> accepted := a :: !accepted) ok ;
-              content, is_error, Some s
-            | "check_type", None -> "missing argument: signature", true, None
-            | name, _ -> "unknown tool: " ^ name, true, None in
-          signature, { call_id = c.id ; content ; is_error }) in
+              content, is_error, Some s, same
+            | "check_type", None -> "missing argument: signature", true, None, false
+            | name, _ -> "unknown tool: " ^ name, true, None, false in
+          (signature, same), { call_id = c.id ; content ; is_error }) in
+      (* Progress, on stderr: a conversation takes minutes, and the result
+         on stdout only comes at the end. *)
+      Printf.eprintf "[llm] %s: turn %d%s: %d check%s, %d accepted so far (%.0f s)\n%!" i.name n
+        (if last then " (closing)" else "") (List.length results)
+        (if List.length results = 1 then "" else "s") (List.length !accepted)
+        (Unix.gettimeofday () -. t0) ;
       log cfg "llm_turn"
         [ ("def", `String i.name) ; ("turn", `Int n) ; ("closing", `Bool last) ;
           ("reply", r.assistant.raw) ;
           ("input_tokens", `Int r.usage.input_tokens) ; ("output_tokens", `Int r.usage.output_tokens) ;
-          ("checks", `List (results |> List.map (fun (s, (res : tool_result)) ->
+          ("checks", `List (results |> List.map (fun ((s, _), (res : tool_result)) ->
              `Assoc [ ("signature", match s with Some s -> `String s | None -> `Null) ;
                       ("answer", `String res.content) ]))) ] ;
+      (* Every check of the turn rejected with inference's error: no
+         signature changes it, there is no point in going on. *)
+      let checked = List.filter (fun ((s, _), _) -> s <> None) results in
+      let all_same = checked <> [] && List.for_all (fun ((_, same), _) -> same) checked in
       match results with
       | [] -> finish (conclude_reply r) n
+      | _ when all_same ->
+        let title = match inference with Some u -> u.title | None -> "" in
+        last_accepted n ~otherwise:(Gave_up (Printf.sprintf
+          "every signature checked was rejected with inference's error (%s): the failure \
+           does not depend on the signature" title))
       | _ when n >= cfg.max_turns ->
         (match !accepted with
          | _ :: _ -> last_accepted ~otherwise:(Gave_up "") n
@@ -312,4 +332,5 @@ let run cfg ~complete ~check (i : input) =
         turn (n + 1) ~last:false
           (messages @ [ Assistant r.assistant ; Tool_results (List.map snd results) ])
   in
+  Printf.eprintf "[llm] %s: asking %s:%s\n%!" i.name cfg.client.provider cfg.client.model ;
   turn 1 ~last:false [ User user ]

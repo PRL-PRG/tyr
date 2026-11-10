@@ -38,6 +38,13 @@ failing call: base::toupper(list())
 
 not_a_function: llm not tried: not a function definition
 
+uses_rlang: Untypeable: untypeable application of base::toupper
+Line 20, characters 48-64
+argument: @(list)
+failing call: base::toupper(list())
+
+uses_rlang: llm not tried: uses unbound rlang::is_true
+
 
 ##### --llm-no-bind
 
@@ -80,4 +87,11 @@ argument: @(list)
 failing call: base::toupper(list())
 
 not_a_function: llm not tried: not a function definition
+
+uses_rlang: Untypeable: untypeable application of base::toupper
+Line 20, characters 48-64
+argument: @(list)
+failing call: base::toupper(list())
+
+uses_rlang: llm not tried: uses unbound rlang::is_true
 

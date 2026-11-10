@@ -47,43 +47,45 @@ let print_result (r : F.result) =
     r.output_tokens
 
 let cases = [
-  "fact", "a rejection, then an accepted signature",
+  "fact", "a rejection, then an accepted signature", false,
   4, [ Some (reply [ "(n: dbl1) -> dbl1" ]) ; Some (reply [ "(n: dbl) -> dbl" ]) ;
        Some (reply ~text:"The recursion works on numbers.\n**DONE: (n: dbl) -> dbl**" []) ] ;
-  "wrong", "no signature fits: the model gives up",
+  "wrong", "no signature fits: the model gives up", false,
   4, [ Some (reply [ "(x: any) -> chr" ]) ;
        Some (reply ~text:"GIVE UP: toupper is always given a list, which it rejects." []) ] ;
-  "count_na", "a signature of any only is refused, a precise one is accepted",
+  "count_na", "a signature of any only is refused, a precise one is accepted", false,
   4, [ Some (reply [ "(v: any) -> any" ]) ; Some (reply [ "(v: any) -> INT1" ]) ;
        Some (reply ~text:"DONE: (v: any) -> INT1" []) ] ;
-  "double_it", "an invalid signature and a valid one in one turn; the final text names none",
+  "double_it", "an invalid signature and a valid one in one turn; the final text names none", false,
   4, [ Some (reply [ "(x: dbl" ; "(x: dbl) -> dbl" ]) ; Some (reply ~text:"That works." []) ] ;
-  "double_it", "two accepted signatures: DONE names the first",
+  "double_it", "two accepted signatures: DONE names the first", false,
   4, [ Some (reply [ "(x: dbl) -> dbl" ; "(x: dbl) -> vec" ]) ;
        Some (reply ~text:"DONE: (x: dbl) -> dbl" []) ] ;
-  "wrong", "the turn limit: the model is asked to conclude, and gives up",
+  "wrong", "the turn limit: the model is asked to conclude, and gives up", false,
   2, [ Some (reply [ "(x: any) -> chr" ]) ; Some (reply [ "(x: dbl) -> chr" ]) ;
        Some (reply ~text:"GIVE UP: toupper is given a list whatever x is." []) ] ;
-  "wrong", "the turn limit: asked to conclude, the model checks again (not run)",
+  "wrong", "the turn limit: asked to conclude, the model checks again (not run)", false,
   1, [ Some (reply [ "(x: any) -> chr" ]) ; Some (reply [ "(x: dbl) -> chr" ]) ] ;
-  "count_na", "the turn limit with a signature accepted: no question asked",
+  "count_na", "the turn limit with a signature accepted: no question asked", false,
   1, [ Some (reply [ "(v: any) -> INT1" ]) ] ;
-  "double_it", "the model runs out of output tokens",
+  "double_it", "the model runs out of output tokens", false,
   4, [ Some (reply ~stop:Max_tokens []) ] ;
-  "fact", "the API fails after an accepted signature: it is kept",
+  "fact", "the API fails after an accepted signature: it is kept", false,
   4, [ Some (reply [ "(n: dbl) -> dbl" ]) ; None ] ;
-  "wrong", "the API fails with nothing accepted",
+  "wrong", "the API fails with nothing accepted", false,
   4, [ Some (reply [ "(x: any) -> chr" ]) ; None ] ;
-  "double_it", "a signature claimed but never checked",
+  "wrong", "a turn of rejections with inference's own error ends the conversation", true,
+  4, [ Some (reply [ "(x: any) -> chr" ; "(x: any) -> CHR" ]) ] ;
+  "double_it", "a signature claimed but never checked", false,
   4, [ Some (reply ~text:"DONE: (x: dbl) -> dbl" []) ] ;
 ]
 
-(* Inference's error: [wrong]'s own, so that its rejections are noted as the
-   same; a stand-in otherwise. *)
-let input ~name ~source = {
+(* Inference's error: with [real], [wrong]'s own, so that its rejections are
+   noted as the same; a stand-in otherwise. *)
+let input ?(real = false) ~name ~source () = {
   F.name ; file = "signatures.R" ; source ;
   failure = F.Untypeable (
-      if name = "wrong" then
+      if real then
         { title = "untypeable application of base::toupper" ; loc = None ;
           descr = Some "argument: @(list<>)\nfailing call: base::toupper(list())" }
       else { title = "unbound variable" ; loc = None ; descr = Some ("name: " ^ name) }) ;
@@ -100,20 +102,20 @@ let () =
   print_endline (F.system_prompt (cfg ())) ;
   print_endline "\n===== The prompt of fact, with every part\n" ;
   let all = { (cfg ()) with context = List.map snd F.part_names } in
-  print_string (F.user_prompt all (input ~name:"fact" ~source:"fact <- function(n) ...")) ;
+  print_string (F.user_prompt all (input ~name:"fact" ~source:"fact <- function(n) ..." ())) ;
   print_endline "\n===== The prompt of fact, after a timeout, source only\n" ;
   print_string (F.user_prompt { (cfg ()) with context = [ F.Source ; F.Error ] }
-                  { (input ~name:"fact" ~source:"fact <- function(n) ...") with failure = F.Timed_out 20. }) ;
+                  { (input ~name:"fact" ~source:"fact <- function(n) ..." ()) with failure = F.Timed_out 20. }) ;
   let run () =
     let ctx = List.fold_left Driver.declare_overloads Driver.initial_ctx [ prelude ; file ] in
     MetaEnv.declare_classes ctx.Driver.tenv ;
     let ctx = SC.quietly (fun () -> Driver.process ctx prelude) in
     let prog, _ = file in
-    cases |> List.iter (fun (name, what, max_turns, replies) ->
+    cases |> List.iter (fun (name, what, real, max_turns, replies) ->
       Printf.printf "\n===== %s: %s\n" name what ;
       let past = List.find (fun p -> Driver.toplevel_name p = Some name) prog in
       let check = SC.check ~timeout:20. ctx past ~name in
       print_result (F.run (cfg ~max_turns ()) ~complete:(scripted replies) ~check
-                      (input ~name ~source:"")))
+                      (input ~real ~name ~source:"" ())))
   in
   Mlsem.Types.PEnv.sequential_handler Mlsem.Types.PEnv.empty run () |> ignore

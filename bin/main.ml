@@ -79,7 +79,7 @@ let speclist =
     ("--fuzz-call-timeout", Arg.Set_float fuzz_call_timeout,
      "SECONDS  Time limit of one call when fuzzing (default 5)") ;
     ("--llm", Arg.String (fun s -> llm := Some s),
-     "PROVIDER:MODEL  Ask this model for the R definitions inference fails on, in strict mode \
+     "PROVIDER:MODEL  Ask this model for the R definitions inference fails on \
       (providers: " ^ String.concat ", " Llm.Client.providers ^ ")") ;
     ("--llm-context", Arg.String (fun s -> llm_context := Some s),
      "PARTS  What the model gets, comma-separated, among source, error, callees, docs, \
