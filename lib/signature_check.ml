@@ -76,5 +76,6 @@ let check ?timeout ctx past ~name signature =
       | [], None -> Failed "the definition was checked, but has no type"
       | [], Some ty ->
         let ub = TyScheme.get ty |> snd |> GTy.ub in
-        Accepted { ctx = ctx'' ; ty ; printed = Report.one_line TyScheme.pp_short ty ;
-                   any_args = Report.any_args ub ; degenerate = Report.degenerate ub }
+        let printed = Report.one_line TyScheme.pp_short ty in
+        Accepted { ctx = ctx'' ; ty ; printed ;
+                   any_args = Report.any_args printed ; degenerate = Report.degenerate ub }

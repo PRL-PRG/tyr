@@ -484,7 +484,8 @@ let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
         let gty = TyScheme.get tys |> snd in
         if role = "package" then add_typed rep n None gty ;
         let ty = GTy.ub gty in
-        Some (R.one_line TyScheme.pp_short tys, (R.degenerate ty, R.any_args ty))
+        let printed = R.one_line TyScheme.pp_short tys in
+        Some (printed, (R.degenerate ty, R.any_args printed))
       | None -> None
     in
     let ctx', status, ty, err, skipped =
@@ -698,7 +699,6 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
       | `Default -> "default" | `SimpleC -> "simple_c" | `DotC -> "dot_c" | `Define -> "define" in
     let pp_tys tys = R.one_line TyScheme.pp_short tys in
     let degenerate tys = TyScheme.get tys |> snd |> GTy.ub |> R.degenerate in
-    let any_args tys = TyScheme.get tys |> snd |> GTy.ub |> R.any_args in
     (* A function that fails and is then bound at its C signature reports
        twice -- the failure, then [Fallback]. Folding the pair is what tells a
        substituted signature from a real inference. [timed_out] is TypR's own
@@ -725,6 +725,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
           | None, None, Some (e, st, t, d) -> (st, None, None, Some (t, d), e)
           | None, None, None -> ("skipped", None, None, None, wall)
       in
+      let printed = Option.map pp_tys ty in
       emit rep "native_def"
         ([ ("name", R.S name) ; ("kind", R.S kind) ; ("file", R.S file) ] @ pos_fields (fst past) @
          [ ("convention", opt_s (Option.map R_c_typing.Package.calling_convention_to_string
@@ -732,9 +733,9 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
            ("is_entry_point", R.B (StrMap.mem name conventions)) ;
            ("is_declaration", R.B (C_deps.is_declaration past)) ;
            ("calls", R.L calls) ; ("status", R.S status) ; ("header_kind", opt_s hdr) ;
-           ("type", opt_s (Option.map pp_tys ty)) ;
+           ("type", opt_s printed) ;
            ("degenerate", R.B (match ty with Some t -> degenerate t | None -> false)) ;
-           ("any_args", R.L (match ty with Some t -> any_args t | None -> [])) ;
+           ("any_args", R.L (match printed with Some p -> R.any_args p | None -> [])) ;
            ("error_title", opt_s (Option.map fst err)) ;
            ("error_detail", opt_s (Option.bind err snd)) ;
            ("elapsed_sec", R.F elapsed) ]) ;
@@ -1058,6 +1059,7 @@ let run opts root =
             let c_name = Pkg.native_symbol pkg conv r_name in
             let native = native_ty c_name in
             let pp_ty ty = R.one_line Mlsem.Types.Ty.pp ty in
+            let native_printed = Option.map pp_ty native in
             match conv with
             | R_c_typing.Package.C | R_c_typing.Package.Fortran ->
               let conv = if conv = R_c_typing.Package.C then ".C" else ".Fortran" in
@@ -1073,7 +1075,7 @@ let run opts root =
               emit rep "link"
                 [ ("r_name", R.S r_name) ; ("symbol", R.S c_name) ;
                   ("native_typed", R.B (native <> None)) ;
-                  ("native_type", opt_s (Option.map pp_ty native)) ;
+                  ("native_type", opt_s native_printed) ;
                   ("convertible", R.B (d <> None)) ;
                   ("reject_reason",
                    (match native, d with
@@ -1085,7 +1087,7 @@ let run opts root =
                   ("degenerate", R.B false) ;
                   (* The R side passes these arguments as they are: they are
                      typed [any] where the C routine's are. *)
-                  ("any_args", R.L (match native with Some t -> R.any_args t | None -> [])) ] ;
+                  ("any_args", R.L (match native_printed with Some p -> R.any_args p | None -> [])) ] ;
               (match bound with
                | None ->
                  Format.printf "%s: no native type available@.@." r_name ;
@@ -1099,17 +1101,18 @@ let run opts root =
                 match native with
                 | None -> Error Link.No_native_type
                 | Some ty -> Link.r_type_of_native' ty in
+              let r_printed = Result.to_option result |> Option.map pp_ty in
               emit rep "link"
                 [ ("r_name", R.S r_name) ; ("symbol", R.S c_name) ;
                   ("native_typed", R.B (native <> None)) ;
-                  ("native_type", opt_s (Option.map pp_ty native)) ;
+                  ("native_type", opt_s native_printed) ;
                   ("convertible", R.B (Result.is_ok result)) ;
                   ("reject_reason",
                    (match result with Error r -> R.S (Link.string_of_reject r) | Ok _ -> R.N)) ;
                   ("bound", R.B (Result.is_ok result)) ;
-                  ("r_type", (match result with Ok ty -> R.S (pp_ty ty) | Error _ -> R.N)) ;
+                  ("r_type", (match r_printed with Some p -> R.S p | None -> R.N)) ;
                   ("degenerate", R.B (match result with Ok ty -> R.degenerate ty | Error _ -> false)) ;
-                  ("any_args", R.L (match result with Ok ty -> R.any_args ty | Error _ -> [])) ] ;
+                  ("any_args", R.L (match r_printed with Some p -> R.any_args p | None -> [])) ] ;
               match result with
               | Error _ ->
                 Format.printf "%s: no native type available@.@." r_name ;

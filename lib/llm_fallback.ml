@@ -166,7 +166,7 @@ let log cfg kind fields =
 let system_logged = ref false
 
 let trivial (a : Signature_check.accepted) =
-  Report.trivial (Mlsem.Types.TyScheme.get a.ty |> snd |> Mlsem.Types.GTy.ub)
+  Report.trivial a.printed
 
 (* Whether a rejection is the error inference reported: same title, same
    first line of description (the witness below may differ). *)
