@@ -25,7 +25,7 @@ inferred: untypeable (unbound variable)
 (n: dbl1) -> dbl1
   rejected: untypeable application of fact
     argument: @((DBL | INT)<Date> | (DBL | INT)<POSIXt, POSIXct> | (DBL | INT)<difftime> | DBL1<~@"-", ...> | LGL<>)
-    failing call: fact(structure(NA_integer_, class = "Date"))
+    failing call: fact(NA)
 
 ===== first
 inferred: ∀'a,'b. (((x: <@"[[", ...>) -> any) & ((x: v('b)<~@"[[", ...>) -> v1('b)<>) & ((x: { 'a }<~@"[[", ...>) -> 'a))<>
@@ -35,7 +35,7 @@ inferred: ∀'a,'b. (((x: <@"[[", ...>) -> any) & ((x: v('b)<~@"[[", ...>) -> v1
     given: any
     expression may be: new.env()
 (x: list) -> any
-  accepted: (x: list) -> any
+  accepted: (x: list) -> any  [any result]
 
 ===== shout
 inferred: (((s: vec) -> CHR<>) & ((s: vec1) -> CHR1<>))<>
@@ -74,6 +74,21 @@ inferred: untypeable (unbound variable)
 (x: any) -> any
   rejected: unbound variable
     name: mutual_b
+
+===== scale_by
+inferred: ∀'a,`a. (((x: (DBL | dbl & v('a))<~@"*", . | `a>, by: (DBL | dbl & v('a))<. | `a>?, ...: any) -> (DBL | INT)<. | `a>) & ((x: (dbl1 & v1('a))<~@"*", . | `a>, by: (DBL1<. | `a> | (dbl & v('a))<. | `a>)?, ...: any) -> DBL1<. | `a> | (INT | (DBL | INT) & v('a))<. | `a>) & ((x: <@"*", ...>, by: any?, ...: any) -> (DBL | INT)<difftime> | LGL<>) & ((x: DBL1<~@"*", . | `a>, by: dbl1<. | `a>?, ...: any) | (x: dbl1<~@"*", . | `a>, by: DBL1<. | `a>?, ...: any) -> DBL1<. | `a>) & ((x: dbl1<~@"*", . | `a>, by: dbl1<. | `a>?, ...: any) -> dbl1<. | `a>))<>
+(x: dbl, by: dbl?, ...: any) -> dbl
+  accepted: (x: dbl, by: dbl?, ...: any) -> dbl
+(x: dbl, by: dbl, ...: any) -> dbl
+  invalid: `by` has a default in the definition, so the signature must make it optional, as in `by: <type>?`
+(x: dbl, ...: any) -> dbl
+  invalid: the parameters must be the definition's, in its order: (x, by, ...), not (x, ...)
+(by: dbl?, x: dbl, ...: any) -> dbl
+  invalid: the parameters must be the definition's, in its order: (x, by, ...), not (by, x, ...)
+(x: dbl, by: dbl?) -> dbl
+  invalid: the parameters must be the definition's, in its order: (x, by, ...), not (x, by)
+(x: dbl, by: dbl?, ...: any) -> dbl && (x: int, by: int, ...: any) -> dbl
+  invalid: `by` has a default in the definition, so the signature must make it optional, as in `by: <type>?`
 
 ===== double_it, with a limit of a microsecond
 timeout (1e-06 s)

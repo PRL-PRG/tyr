@@ -221,6 +221,11 @@ let any_args printed =
   |> List.fold_left (fun acc n -> if List.mem n acc then acc else n :: acc) []
   |> List.rev
 
+(* A printed function type whose result is [any] in one of its arrows at
+   least. *)
+let any_result printed =
+  Printed.arrows printed |> List.exists snd
+
 (* A printed function type that says nothing: in every arrow, every parameter
    is [any] and so is the result. The LLM fallback refuses such signatures. *)
 let trivial printed =

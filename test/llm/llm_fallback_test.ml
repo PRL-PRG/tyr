@@ -76,6 +76,9 @@ let cases = [
   4, [ Some (reply [ "(x: any) -> chr" ]) ; None ] ;
   "wrong", "a turn of rejections with inference's own error ends the conversation", true,
   4, [ Some (reply [ "(x: any) -> chr" ; "(x: any) -> CHR" ]) ] ;
+  "scale_by", "parameters other than the definition's, then a result of any (noted)", false,
+  4, [ Some (reply [ "(x: dbl, by: dbl) -> dbl" ; "(x: dbl, by: dbl?, ...: any) -> any" ]) ;
+       Some (reply ~text:"DONE: (x: dbl, by: dbl?, ...: any) -> any" []) ] ;
   "double_it", "a signature claimed but never checked", false,
   4, [ Some (reply ~text:"DONE: (x: dbl) -> dbl" []) ] ;
 ]

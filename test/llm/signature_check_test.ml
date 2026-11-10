@@ -11,7 +11,9 @@
    - [any] is not free: [(x: any) -> any] is rejected wherever the argument
      is used ([double_it]), accepted where it is not constrained ([count_na]);
    - [wrong] has no type at all; [mutual_a] has none on its own either, as
-     [mutual_b] is not bound yet. *)
+     [mutual_b] is not bound yet;
+   - [scale_by]: a signature must have the definition's parameters, in its
+     order, those with a default optional, in each of its arrows. *)
 
 open Lang
 module SC = Tyr.Signature_check
@@ -26,14 +28,19 @@ let cases = [
   "pick", [ "(flag: lgl1, a: dbl, b: dbl) -> dbl" ; "(flag: lgl1, a: 'a, b: 'a) -> 'a" ] ;
   "count_na", [ "(v: any) -> int1" ; "(v: vec) -> INT1" ] ;
   "mutual_a", [ "(x: any) -> any" ] ;
+  "scale_by", [ "(x: dbl, by: dbl?, ...: any) -> dbl" ; "(x: dbl, by: dbl, ...: any) -> dbl" ;
+                "(x: dbl, ...: any) -> dbl" ; "(by: dbl?, x: dbl, ...: any) -> dbl" ;
+                "(x: dbl, by: dbl?) -> dbl" ;
+                "(x: dbl, by: dbl?, ...: any) -> dbl && (x: int, by: int, ...: any) -> dbl" ] ;
 ]
 
 let timeout = Some 20.
 
 let print_outcome = function
   | SC.Accepted a ->
-    Printf.printf "accepted: %s%s%s\n" a.printed
+    Printf.printf "accepted: %s%s%s%s\n" a.printed
       (if a.any_args = [] then "" else "  [any: " ^ String.concat ", " a.any_args ^ "]")
+      (if a.any_result then "  [any result]" else "")
       (if a.degenerate then "  [degenerate]" else "")
   | SC.Invalid m -> Printf.printf "invalid: %s\n" m
   | SC.Rejected u ->

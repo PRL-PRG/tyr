@@ -27,6 +27,10 @@ function's name.
 4. **Be precise about the result**: an `any` result says nothing.
 5. **`any` is a last resort**, for a parameter that is really unconstrained.
    A signature whose parameters and result are all `any` is refused.
+6. **Keep the definition's parameters**, all of them and in its order,
+   `...` included. A parameter with a default is optional: for
+   `function(x, digits = 4)`, write `(x: dbl, digits: dbl1?) -> ...`. Other
+   signatures are invalid.
 
 Read the witnesses of the rejections: they show which values make the
 definition fail, and so which types are too wide. A parameter's type says

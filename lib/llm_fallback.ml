@@ -189,6 +189,10 @@ let answer ~check ?inference signature =
     let notes =
       (if a.any_args = [] then []
        else [ "note: typed `any`: " ^ String.concat ", " a.any_args ])
+      @ (if a.any_result then
+           [ "note: the result is `any`: this says nothing about what the function \
+              returns. If the body shows what it returns, check a more precise result." ]
+         else [])
       @ (if a.degenerate then [ "note: this type says the function never returns" ] else []) in
     plain (String.concat "\n" (("accepted: " ^ a.printed) :: notes), false, Some (signature, a))
   | Signature_check.Invalid m -> plain ("invalid signature: " ^ m, true, None)
