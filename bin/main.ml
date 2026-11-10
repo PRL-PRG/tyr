@@ -36,7 +36,7 @@ let llm = ref None
 let llm_context = ref None
 let llm_syntax = ref "short"
 let llm_max_turns = ref 4
-let llm_max_tokens = ref 16384
+let llm_max_tokens = ref 32768
 let llm_bind = ref true
 let llm_cache = ref None
 let llm_transcript = ref None
@@ -88,7 +88,7 @@ let speclist =
      " How the type language is explained: a short reference (the default) or the full documents") ;
     ("--llm-max-turns", Arg.Set_int llm_max_turns, "N  Turns per definition (default 4)") ;
     ("--llm-max-tokens", Arg.Set_int llm_max_tokens,
-     "N  Output tokens per turn, reasoning included (default 16384)") ;
+     "N  Output tokens per turn, reasoning included (default 32768)") ;
     ("--llm-no-bind", Arg.Clear llm_bind,
      "Do not bind the types the model finds for the definitions that follow") ;
     ("--llm-cache", Arg.String (fun d -> llm_cache := Some d),
