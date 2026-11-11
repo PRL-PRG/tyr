@@ -52,7 +52,7 @@ argument: @(CHR<>, CHR<>, CHR1, 'template & vec)
 argument (not in the domain) may be: (NA_character_,
                                       NA_character_,
                                       NA_character_,
-                                      NA)
+                                      as.raw(0))
 
 praise: Untypeable: unbound variable
 Line 62, characters 16-36

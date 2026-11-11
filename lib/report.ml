@@ -230,7 +230,7 @@ type untypeable = { title : string ; loc : (int * int * int) option ; descr : st
 
 (* The description is normalized as it reads once printed: lines trimmed,
    blank ones dropped. *)
-let untypeable_of_error (err : Mlsem.System.Error.t) pos =
+let untypeable_of_error (err : Mlsem.Lang.Error.t) pos =
   let open Mlsem.Common in
   let loc =
     if pos = Position.dummy then None
