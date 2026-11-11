@@ -19,6 +19,12 @@ RUN apt-get update && apt-get install -y \
 USER opam
 WORKDIR /home/opam
 
+# libcurl's development files come from apt above (the OpenSSL variant, the
+# one the runtime stage has), but opam's conf-libcurl asks for the GnuTLS one,
+# which conflicts with it. Without this, every opam command, r-parser's own
+# `opam install --deps-only` included, would refuse or remove curl.
+ENV OPAMNODEPEXTS=1
+
 # Rust is required by tree-sitter-cli during the r-parser build.
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
       | sh -s -- -y --no-modify-path
@@ -47,10 +53,9 @@ RUN opam update --yes && eval $(opam env) && \
     # Everything the four projects need that opam knows about, explicitly:
     # rstt-repl wants menhir, rstt zarith, r-c-typing ppx_inline_test and
     # (through its c-parser) atdgen; rstt's tests want ppx_expect; tyr yojson
-    # and curl (its LLM client; libcurl's development files come from apt
-    # above, hence --assume-depexts: opam asks for the GnuTLS variant);
-    # CI's coverage job bisect_ppx.
-    opam install --yes --ignore-pin-depends --assume-depexts \
+    # and curl (its LLM client; cf. OPAMNODEPEXTS above); CI's coverage job
+    # bisect_ppx.
+    opam install --yes --ignore-pin-depends \
       ocamlfind dune cmdliner menhir zarith ppx_inline_test ppx_expect \
       yojson curl atdgen atdgen-runtime bisect_ppx \
       sstt sstt-repl mlsem-types mlsem-common mlsem-system mlsem-lang mlsem
@@ -73,8 +78,9 @@ RUN git clone "https://github.com/E-Sh4rk/r-parser.git" r-parser && \
     # Fail here, loudly, rather than at link time.
     test -f "$(opam var lib)/tree-sitter/dune-package" && \
     opam exec -- ocamlfind list | grep -q "tree-sitter.run" && \
-    # ... and that the opam solving above left bisect_ppx in place.
-    opam exec -- ocamlfind list | grep -q "^bisect_ppx "
+    # ... and that the opam solving above left bisect_ppx and curl in place.
+    opam exec -- ocamlfind list | grep -q "^bisect_ppx " && \
+    opam exec -- ocamlfind list | grep -q "^curl "
 
 ENV TREESITTER_INCDIR="/home/opam/r-parser/core/tree-sitter/include"
 ENV TREESITTER_LIBDIR="/home/opam/r-parser/core/tree-sitter/lib"
