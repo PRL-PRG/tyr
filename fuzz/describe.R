@@ -1,4 +1,4 @@
-# The structural description of an R value that TypR's Valty module types
+# The structural description of an R value that tyr's Valty module types
 # (lib/valty.ml documents the format). Shared by the fuzzing harness and the
 # tests that check it against the OCaml side (lib/rval.ml).
 
@@ -40,7 +40,7 @@ fuzz_extptr_null <- function(x) {
 fuzz_describe_vec <- function(x, mode) {
   d <- list(t = "vec", mode = mode, len = length(x))
   if (length(x) != 1L) return(d)
-  # NaN is no NA for TypR: it is one of the non-integer doubles.
+  # NaN is no NA for tyr: it is one of the non-integer doubles.
   na <- if (mode == "raw") FALSE else is.na(x) && !is.nan(x)
   d$na <- na
   if (na) return(d)

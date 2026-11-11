@@ -2,7 +2,7 @@
 
     Type inference can take arbitrarily long on one function, and that function
     must not cost us the rest of the package. The same mechanism bounds both
-    checkers: TypR drives the R side definition by definition, and NativeSem
+    checkers: tyr drives the R side definition by definition, and NativeSem
     schedules its own functions but calls back through the [guard] hook of
     [Runner.run_on_pasts], so the policy lives here either way. *)
 

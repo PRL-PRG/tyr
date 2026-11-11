@@ -1,5 +1,5 @@
 # ─── Stage 1: Build ──────────────────────────────────────────────────────────
-# Builds TypR together with its three submodules (Rsem, NativeSem, rstt) as one
+# Builds tyr together with its three submodules (Rsem, NativeSem, rstt) as one
 # dune workspace. Only sstt and MLsem come from opam; rstt, rsem and r-c-typing
 # are the submodules, so `opam install . --deps-only` is never run here -- it
 # would fail (those three are not in the default repository) and, worse, would
@@ -25,9 +25,9 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
 ENV PATH="/home/opam/.cargo/bin:${PATH}"
 
 # Pins of the set-theoretic stack. Keep in sync with nativesem's ci.yml and
-# Dockerfile: TypR builds NativeSem and Rsem in one process, so they must agree.
+# Dockerfile: tyr builds NativeSem and Rsem in one process, so they must agree.
 ARG SSTT_REF=dda8b29cc3844473c81c4dc4ff698f657000e8a2
-ARG MLSEM_REF=86a92b26f3ac875d7766f46d4d7588c0ef699349
+ARG MLSEM_REF=37359e51998c049485c4afe57ce1c4a6cf3ef35c
 ARG BISECT_PPX_REF=2d8dffbbfc0c431a37319d4d9a143836c9ec542e
 
 RUN opam update --yes && eval $(opam env) && \
@@ -46,7 +46,7 @@ RUN opam update --yes && eval $(opam env) && \
     opam pin add ppxlib 0.35.0 --yes --no-action && \
     # Everything the four projects need that opam knows about, explicitly:
     # rstt-repl wants menhir, rstt zarith, r-c-typing ppx_inline_test and
-    # (through its c-parser) atdgen; rstt's tests want ppx_expect; typr yojson
+    # (through its c-parser) atdgen; rstt's tests want ppx_expect; tyr yojson
     # and curl (its LLM client; libcurl's development files come from apt
     # above, hence --assume-depexts: opam asks for the GnuTLS variant);
     # CI's coverage job bisect_ppx.
@@ -83,8 +83,8 @@ ENV LD_LIBRARY_PATH="/home/opam/r-parser/core/tree-sitter/lib"
 FROM deps AS builder
 
 # The whole workspace, submodules included (.dockerignore keeps them).
-COPY --chown=opam:opam . /home/opam/typr/
-WORKDIR /home/opam/typr
+COPY --chown=opam:opam . /home/opam/tyr/
+WORKDIR /home/opam/tyr
 # Not the default alias: that would pull in every .expected diff rule.
 RUN eval $(opam env) && dune build bin/main.exe
 
@@ -135,16 +135,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Keep the _build/default/bin/main.exe path run_one_package.sh expects.
 RUN mkdir -p /checker/_build/default/bin
-COPY --from=builder /home/opam/typr/_build/default/bin/main.exe /checker/_build/default/bin/main.exe
+COPY --from=builder /home/opam/tyr/_build/default/bin/main.exe /checker/_build/default/bin/main.exe
 
 # NativeSem's R-C-API signatures, found among the ancestors of the CWD; and the
 # base R prelude the R side is checked against (Rsem's signatures).
-COPY --from=builder /home/opam/typr/nativesem/types /checker/types
-COPY --from=builder /home/opam/typr/Rsem/sigs/base.R /checker/prelude/base.R
+COPY --from=builder /home/opam/tyr/nativesem/types /checker/types
+COPY --from=builder /home/opam/tyr/Rsem/sigs/base.R /checker/prelude/base.R
 
 # The fuzzing harness, where --fuzz-harness looks by default: fuzz/ next to
 # the binary's bin/.
-COPY --from=builder /home/opam/typr/fuzz/harness.R /home/opam/typr/fuzz/describe.R \
+COPY --from=builder /home/opam/tyr/fuzz/harness.R /home/opam/tyr/fuzz/describe.R \
      /checker/_build/default/fuzz/
 
 COPY --from=builder /home/opam/r-parser/core/tree-sitter/lib/libtree-sitter.so* /usr/local/lib/
@@ -154,22 +154,22 @@ RUN ldconfig
 ENV CHECKER_DIR=/checker
 ENV CHECKER=/checker/_build/default/bin/main.exe
 ENV TS_LIB_DIR=/usr/local/lib
-ENV TYPR_PRELUDE=/checker/prelude/base.R
-ENV TYPR_FUZZ_HARNESS=/checker/_build/default/fuzz
+ENV TYR_PRELUDE=/checker/prelude/base.R
+ENV TYR_FUZZ_HARNESS=/checker/_build/default/fuzz
 
 # Provenance: which commits this image was built from, and whether the
 # submodules were at their pinned SHAs or refreshed to their branches. The
 # binary copies the environment variables into its `run` record; the file is
 # for r-typing's record_checker_version.sh.
-ARG TYPR_SHA=unknown
+ARG TYR_SHA=unknown
 ARG RSEM_SHA=unknown
 ARG NATIVESEM_SHA=unknown
 ARG RSTT_SHA=unknown
 ARG PINNED=true
 ARG SUBJECT=
-ENV TYPR_SHA=${TYPR_SHA} RSEM_SHA=${RSEM_SHA} NATIVESEM_SHA=${NATIVESEM_SHA} RSTT_SHA=${RSTT_SHA} TYPR_PINNED=${PINNED}
-RUN printf '{"typr":"%s","rsem":"%s","nativesem":"%s","rstt":"%s","pinned":%s,"subject":"%s","built_at":"%s"}\n' \
-      "$TYPR_SHA" "$RSEM_SHA" "$NATIVESEM_SHA" "$RSTT_SHA" "$PINNED" "$SUBJECT" "$(date -u +%FT%TZ)" \
+ENV TYR_SHA=${TYR_SHA} RSEM_SHA=${RSEM_SHA} NATIVESEM_SHA=${NATIVESEM_SHA} RSTT_SHA=${RSTT_SHA} TYR_PINNED=${PINNED}
+RUN printf '{"tyr":"%s","rsem":"%s","nativesem":"%s","rstt":"%s","pinned":%s,"subject":"%s","built_at":"%s"}\n' \
+      "$TYR_SHA" "$RSEM_SHA" "$NATIVESEM_SHA" "$RSTT_SHA" "$PINNED" "$SUBJECT" "$(date -u +%FT%TZ)" \
       > /checker/provenance.json
 
 WORKDIR /checker

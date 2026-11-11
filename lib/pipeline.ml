@@ -1,4 +1,4 @@
-(** The TypR pipeline.
+(** The tyr pipeline.
 
     Parses a package once, resolves the dependencies between its R and native
     functions, and drives the two type-checkers in that order: the native side
@@ -654,7 +654,7 @@ let with_void_ty ty f =
    no longer do -- NativeSem's rule is per variable, because bare primitives
    (CHARSXPs) exist only at the C level and rstt's whole-component rule erases
    their content. So the native phase must run under NativeSem's hook, and the
-   R phase under Rsem's, or the native types TypR links differ from what
+   R phase under Rsem's, or the native types tyr links differ from what
    NativeSem itself infers. *)
 let with_native_hooks f =
   let saved = !Mlsem.System.Config.subst_normalization_fun in
@@ -678,7 +678,7 @@ let setup_include_dirs include_dirs =
    over to the R phase (it holds the aliases declared by the [.ty] files, so
    that both phases print types the same way).
 
-   The scheduling is TypR's, not NativeSem's: the call graph is built here (see
+   The scheduling is tyr's, not NativeSem's: the call graph is built here (see
    {!C_deps}), so a native function is ordered and bounded exactly like an R
    one. NativeSem is called one top-level unit at a time, through
    [Runner.infer_def]. *)
@@ -705,8 +705,8 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
     let degenerate tys = TyScheme.get tys |> snd |> GTy.ub |> R.degenerate in
     (* A function that fails and is then bound at its C signature reports
        twice -- the failure, then [Fallback]. Folding the pair is what tells a
-       substituted signature from a real inference. [timed_out] is TypR's own
-       guard firing: NativeSem's internal timer is off under TypR, so its
+       substituted signature from a real inference. [timed_out] is tyr's own
+       guard firing: NativeSem's internal timer is off under tyr, so its
        [Timeout] outcome never comes. *)
     let native_def ~kind ~file ~(past : PAst.top_level_unit) ~calls ~timed_out ~wall =
       let name = PAst.top_level_unit_name past in
@@ -930,7 +930,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
 
 (* ===== Pipeline ===== *)
 
-(* What TypR resolved, without running either checker. *)
+(* What tyr resolved, without running either checker. *)
 let report_deps opts (pkg : Pkg.t) entry_points files =
   let defined =
     files |> List.concat_map (fun f -> f.defs)
@@ -994,9 +994,9 @@ let run opts root =
         ("log_times", R.B opts.native.log_times) ; ("prefix", R.S pkg.prefix) ;
         ("n_r_files", R.I (List.length pkg.r_files)) ;
         ("n_c_files", R.I (List.length pkg.c_files)) ;
-        ("prov_typr", prov "TYPR_SHA") ; ("prov_rsem", prov "RSEM_SHA") ;
+        ("prov_tyr", prov "TYR_SHA") ; ("prov_rsem", prov "RSEM_SHA") ;
         ("prov_nativesem", prov "NATIVESEM_SHA") ; ("prov_rstt", prov "RSTT_SHA") ;
-        ("prov_pinned", prov "TYPR_PINNED") ] ;
+        ("prov_pinned", prov "TYR_PINNED") ] ;
     let t0 = Unix.gettimeofday () in
     let files = List.filter_map (parse_r rep "package") pkg.r_files in
     let files = order_r_files files in
