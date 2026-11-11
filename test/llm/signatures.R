@@ -16,3 +16,7 @@ mutual_a <- function(x) mutual_b(x)
 mutual_b <- function(x) mutual_a(x)
 
 scale_by <- function(x, by = 2, ...) x * by
+
+name_or <- function(x) if (is.null(x)) "none" else paste(x)
+
+field_or <- function(s) if (is.null(s$a)) "none" else s$a

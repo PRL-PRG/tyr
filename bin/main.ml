@@ -7,7 +7,7 @@ let usage =
   \       [--fuzz-dir DIR] [--fuzz-call-timeout SECONDS]]\n\
   \      [--llm PROVIDER:MODEL [--llm-context PARTS] [--llm-syntax short|full]\n\
   \       [--llm-max-turns N] [--llm-max-tokens N] [--llm-no-bind] [--llm-cache DIR]\n\
-  \       [--llm-transcript FILE]]\n\
+  \       [--llm-transcript FILE] [--llm-effort LEVEL] [--llm-thinking-display MODE]]\n\
   \      [-I DIR] <package-directory>"
 
 let deps_only = ref false
@@ -40,6 +40,8 @@ let llm_max_tokens = ref 32768
 let llm_bind = ref true
 let llm_cache = ref None
 let llm_transcript = ref None
+let llm_effort = ref None
+let llm_thinking_display = ref None
 
 let speclist =
   [ ("--deps", Arg.Set deps_only,
@@ -94,7 +96,13 @@ let speclist =
     ("--llm-cache", Arg.String (fun d -> llm_cache := Some d),
      "DIR  Cache the model's replies there, and reuse them") ;
     ("--llm-transcript", Arg.String (fun f -> llm_transcript := Some f),
-     "FILE  Write the conversations there (one JSON record per line)") ]
+     "FILE  Write the conversations there (one JSON record per line)") ;
+    ("--llm-effort", Arg.Symbol ([ "low" ; "medium" ; "high" ; "xhigh" ; "max" ],
+                                 fun e -> llm_effort := Some e),
+     " How much the model thinks (Anthropic only; default: the model's own)") ;
+    ("--llm-thinking-display", Arg.Symbol ([ "summarized" ; "omitted" ],
+                                           fun d -> llm_thinking_display := Some d),
+     " Whether the transcript gets a summary of the model's thinking (Anthropic only)") ]
 
 let () =
   Printexc.record_backtrace true ;
@@ -129,7 +137,13 @@ let () =
     let llm =
       try
         !llm |> Option.map (fun spec ->
-          { Tyr.Llm_fallback.client = Llm.Client.of_spec spec ;
+          let client = Llm.Client.of_spec spec in
+          if (!llm_effort <> None || !llm_thinking_display <> None)
+          && client.format <> Llm.Client.Anthropic then
+            failwith "--llm-effort and --llm-thinking-display are only for the anthropic provider" ;
+          let client = { client with effort = !llm_effort ;
+                                     thinking_display = !llm_thinking_display } in
+          { Tyr.Llm_fallback.client ;
             context = (match !llm_context with
               | Some s -> Tyr.Llm_fallback.parts_of_string s
               | None -> Tyr.Llm_fallback.default_context) ;

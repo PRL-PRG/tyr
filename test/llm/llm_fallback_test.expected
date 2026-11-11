@@ -91,7 +91,8 @@ A type is a set of R values; subtyping is set inclusion.
 
 `{ a: T, b: U }` (exactly the fields `a` and `b`), `{ a: T, U }` (field `a`,
 every other element of type `U`), `{ T }` (any number of `T`), `{ any }` (any
-list), `{ a: T? }` (`a` may be absent).
+list), `{ a: T? }` (`a` may be absent), `{ a: T | null }` (`a` may be
+`NULL`).
 
 ## Classes and attributes
 
@@ -106,6 +107,9 @@ class `cls`), `<cls, ...>` (at least `cls`), `<>` (no class), and
 - the parameters are the R function's formals, **same names, same order**;
 - `?` marks an optional parameter: every parameter with a default value, or
   only used under `if (!missing(p))`, needs it;
+- `?` means *may be missing*, never *may be `NULL`*: a parameter or field
+  that may be `NULL` is `T | null`, and a parameter whose default is `NULL`
+  (`function(x = NULL)`) is `x: T | null?`;
 - `...: V` types the extra arguments (`...: any` if anything goes);
 - `->`, not `-->`.
 
@@ -193,7 +197,7 @@ It took longer than 20 s.
 ===== fact: a rejection, then an accepted signature
   -> rejected: untypeable application of fact
      argument: @((DBL | INT)<Date> | (DBL | INT)<POSIXt, POSIXct> | (DBL | INT)<difftime> | DBL1<~@"-", ...> | LGL<>)
-     failing call: fact(NA)
+     failing call: fact(structure(NA_integer_, class = "Date"))
   -> accepted: (n: dbl) -> dbl
 typed: (n: dbl) -> dbl (checked as (n: dbl) -> dbl)
 turns 3, checks 2, tokens 300 in, 30 out
@@ -265,6 +269,18 @@ turns 1, checks 2, tokens 100 in, 10 out
      note: the result is `any`: this says nothing about what the function returns. If the body shows what it returns, check a more precise result.
 typed: (x: dbl, by: dbl?, ...: any) -> any (checked as (x: dbl, by: dbl?, ...: any) -> any)
 turns 2, checks 2, tokens 200 in, 20 out
+
+===== name_or: two accepted, neither including the other: noted; the better union is kept, though DONE names another
+  -> accepted: (x: null) -> CHR
+  -> accepted: (x: vec) -> CHR
+     note: neither this signature nor `(x: null) -> CHR`, accepted before, includes the other. One that accepts the arguments of both, e.g. with the union of their parameter types, may be accepted too, and is better.
+  -> accepted: (x: vec | null) -> CHR
+typed: (x: vec | null) -> CHR (checked as (x: vec | null) -> CHR)
+turns 3, checks 3, tokens 300 in, 30 out
+
+===== name_or: out of turns: the best accepted is kept, not the last
+typed: (x: vec | null) -> CHR (checked as (x: vec | null) -> CHR)
+turns 1, checks 2, tokens 100 in, 10 out
 
 ===== double_it: a signature claimed but never checked
 gave up: claimed a signature that was not accepted: (x: dbl) -> dbl

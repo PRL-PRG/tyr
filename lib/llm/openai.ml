@@ -16,6 +16,28 @@ let path = "/chat/completions"
     [max_tokens]). *)
 type token_limit = Max_tokens | Max_completion_tokens
 
+(** What a server of this format wants of the request, beyond the common
+    fields:
+    - [token_limit], [seed]: the names of the token limit and of the seed
+      ([seed] almost everywhere, [random_seed] at Mistral, which rejects
+      unknown fields such as [seed]);
+    - [greedy_top_p]: send [top_p: 1] with a temperature of 0. Mistral
+      rejects a temperature of 0 ("greedy sampling") unless [top_p] is 1,
+      and some of its models default to another [top_p];
+    - [cache_key]: a [prompt_cache_key], so that requests sharing a prefix
+      read it from the provider's cache (Mistral: billed at 10%). *)
+type dialect = {
+  token_limit : token_limit ;
+  seed : string ;
+  greedy_top_p : bool ;
+  cache_key : string option ;
+}
+
+let standard = { token_limit = Max_tokens ; seed = "seed" ; greedy_top_p = false ; cache_key = None }
+let openai = { standard with token_limit = Max_completion_tokens }
+let mistral =
+  { standard with seed = "random_seed" ; greedy_top_p = true ; cache_key = Some "tyr-llm-fallback" }
+
 let headers ~api_key =
   "content-type: application/json"
   :: (match api_key with Some k -> [ "authorization: Bearer " ^ k ] | None -> [])
@@ -41,7 +63,8 @@ let tool (t : tool) =
            ("function", `Assoc [ ("name", `String t.name) ; ("description", `String t.description) ;
                                  ("parameters", t.parameters) ]) ]
 
-let body ?(token_limit = Max_tokens) ~model (r : request) : json =
+let body ?(dialect = standard) ~model (r : request) : json =
+  let token_limit = dialect.token_limit in
   let system =
     if r.system = "" then []
     else [ `Assoc [ ("role", `String "system") ; ("content", `String r.system) ] ] in
@@ -53,7 +76,11 @@ let body ?(token_limit = Max_tokens) ~model (r : request) : json =
       (limit, `Int r.max_tokens) ]
     @ (if r.tools = [] then [] else [ ("tools", `List (List.map tool r.tools)) ])
     @ (match r.temperature with Some t -> [ ("temperature", `Float t) ] | None -> [])
-    @ (match r.seed with Some s -> [ ("seed", `Int s) ] | None -> []))
+    @ (match r.temperature with
+        | Some 0. when dialect.greedy_top_p -> [ ("top_p", `Float 1.) ]
+        | _ -> [])
+    @ (match dialect.cache_key with Some k -> [ ("prompt_cache_key", `String k) ] | None -> [])
+    @ (match r.seed with Some s -> [ (dialect.seed, `Int s) ] | None -> []))
 
 let response (j : json) : response =
   let open Yojson.Safe.Util in
@@ -87,6 +114,16 @@ let response (j : json) : response =
     let count k = match member "usage" j with
       | `Assoc _ as u -> member k u |> to_int_option |> Option.value ~default:0
       | _ -> 0 in
+    (* [prompt_tokens] includes the cached ones, which some servers report
+       apart. *)
+    let cached = match member "usage" j with
+      | `Assoc _ as u ->
+        (match member "prompt_tokens_details" u with
+         | `Assoc _ as d -> member "cached_tokens" d |> to_int_option |> Option.value ~default:0
+         | _ -> 0)
+      | _ -> 0 in
     { assistant = { raw = m ; text ; tool_calls } ; stop ;
-      usage = { input_tokens = count "prompt_tokens" ; output_tokens = count "completion_tokens" } }
+      usage = { input_tokens = count "prompt_tokens" - cached ;
+                output_tokens = count "completion_tokens" ; cache_read = cached ; cache_write = 0 ;
+                raw = member "usage" j } }
   with Type_error (msg, _) -> raise (Bad_response msg)

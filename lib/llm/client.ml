@@ -1,4 +1,4 @@
-type format = Anthropic | Openai of Openai.token_limit | Script
+type format = Anthropic | Openai of Openai.dialect | Script
 
 type config = {
   provider : string ;
@@ -9,18 +9,20 @@ type config = {
   timeout : int ;
   connect_timeout : int ;
   retries : int ;
+  effort : string option ;
+  thinking_display : string option ;
 }
 
 (* Name, format, default base URL, and the variable holding the key ([None]:
    a key is optional). *)
 let presets = [
   ("anthropic", Anthropic, Some "https://api.anthropic.com", Some "ANTHROPIC_API_KEY") ;
-  ("openai", Openai Max_completion_tokens, Some "https://api.openai.com/v1", Some "OPENAI_API_KEY") ;
-  ("einfra", Openai Max_tokens, Some "https://llm.ai.e-infra.cz/v1", Some "EINFRA_API_KEY") ;
-  ("mistral", Openai Max_tokens, Some "https://api.mistral.ai/v1", Some "MISTRAL_API_KEY") ;
-  ("meta", Openai Max_tokens, Some "https://api.meta.ai/v1", Some "META_API_KEY") ;
-  ("openrouter", Openai Max_tokens, Some "https://openrouter.ai/api/v1", Some "OPENROUTER_API_KEY") ;
-  ("local", Openai Max_tokens, None, None) ;
+  ("openai", Openai Openai.openai, Some "https://api.openai.com/v1", Some "OPENAI_API_KEY") ;
+  ("einfra", Openai Openai.standard, Some "https://llm.ai.e-infra.cz/v1", Some "EINFRA_API_KEY") ;
+  ("mistral", Openai Openai.mistral, Some "https://api.mistral.ai/v1", Some "MISTRAL_API_KEY") ;
+  ("meta", Openai Openai.standard, Some "https://api.meta.ai/v1", Some "META_API_KEY") ;
+  ("openrouter", Openai Openai.standard, Some "https://openrouter.ai/api/v1", Some "OPENROUTER_API_KEY") ;
+  ("local", Openai Openai.standard, None, None) ;
 ]
 
 let providers = List.map (fun (n, _, _, _) -> n) presets @ [ "script" ]
@@ -38,7 +40,8 @@ let of_spec ?(timeout = 300) ?(retries = 4) spec =
   | None when provider = "script" ->
     if model = "" then failwith (spec ^ ": no file") ;
     { provider ; format = Script ; base_url = model ; api_key = None ; model ;
-      timeout ; connect_timeout = 30 ; retries = 0 }
+      timeout ; connect_timeout = 30 ; retries = 0 ; effort = None ;
+      thinking_display = None }
   | None ->
     failwith (Printf.sprintf "unknown LLM provider %s (one of: %s)" provider
                 (String.concat ", " providers))
@@ -53,7 +56,8 @@ let of_spec ?(timeout = 300) ?(retries = 4) spec =
          | None -> failwith (Printf.sprintf "%s: %s is not set" provider v))
       | None -> getenv "TYR_LLM_API_KEY" in
     if model = "" then failwith (spec ^ ": no model") ;
-    { provider ; format ; base_url ; api_key ; model ; timeout ; connect_timeout = 30 ; retries }
+    { provider ; format ; base_url ; api_key ; model ; timeout ; connect_timeout = 30 ; retries ;
+      effort = None ; thinking_display = None }
 
 exception Error of string
 
@@ -139,10 +143,11 @@ let http_request cfg r =
   | Anthropic ->
     let key = Option.value cfg.api_key ~default:"" in
     Some (cfg.base_url ^ Anthropic.path, Anthropic.headers ~api_key:key,
-          Anthropic.body ~model:cfg.model r, Anthropic.response)
-  | Openai token_limit ->
+          Anthropic.body ?effort:cfg.effort ?display:cfg.thinking_display ~model:cfg.model r,
+          Anthropic.response)
+  | Openai dialect ->
     Some (cfg.base_url ^ Openai.path, Openai.headers ~api_key:cfg.api_key,
-          Openai.body ~token_limit ~model:cfg.model r, Openai.response)
+          Openai.body ~dialect ~model:cfg.model r, Openai.response)
   | Script -> None
 
 let complete ?cache cfg (r : Conversation.request) =

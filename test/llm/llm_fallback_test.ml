@@ -19,7 +19,8 @@ let reply ?(text = "") ?stop checks =
       arguments = `Assoc [ ("signature", `String s) ] }) in
   { assistant = { raw = `Assoc [ ("role", `String "assistant") ] ; text ; tool_calls } ;
     stop = (match stop with Some s -> s | None -> if checks = [] then End_turn else Tool_use) ;
-    usage = { input_tokens = 100 ; output_tokens = 10 } }
+    usage = { input_tokens = 100 ; output_tokens = 10 ; cache_read = 0 ; cache_write = 0 ;
+              raw = `Null } }
 
 (* A model that gives the [replies] in order, and prints the answers to its
    checks as it receives them. [None] is an API failure. *)
@@ -79,6 +80,13 @@ let cases = [
   "scale_by", "parameters other than the definition's, then a result of any (noted)", false,
   4, [ Some (reply [ "(x: dbl, by: dbl) -> dbl" ; "(x: dbl, by: dbl?, ...: any) -> any" ]) ;
        Some (reply ~text:"DONE: (x: dbl, by: dbl?, ...: any) -> any" []) ] ;
+  "name_or", "two accepted, neither including the other: noted; the better union is kept, \
+              though DONE names another", false,
+  4, [ Some (reply [ "(x: null) -> CHR" ; "(x: vec) -> CHR" ]) ;
+       Some (reply [ "(x: vec | null) -> CHR" ]) ;
+       Some (reply ~text:"DONE: (x: null) -> CHR" []) ] ;
+  "name_or", "out of turns: the best accepted is kept, not the last", false,
+  1, [ Some (reply [ "(x: vec | null) -> CHR" ; "(x: null) -> CHR" ]) ] ;
   "double_it", "a signature claimed but never checked", false,
   4, [ Some (reply ~text:"DONE: (x: dbl) -> dbl" []) ] ;
 ]

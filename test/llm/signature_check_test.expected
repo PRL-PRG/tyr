@@ -25,7 +25,7 @@ inferred: untypeable (unbound variable)
 (n: dbl1) -> dbl1
   rejected: untypeable application of fact
     argument: @((DBL | INT)<Date> | (DBL | INT)<POSIXt, POSIXct> | (DBL | INT)<difftime> | DBL1<~@"-", ...> | LGL<>)
-    failing call: fact(NA)
+    failing call: fact(structure(NA_integer_, class = "Date"))
 
 ===== first
 inferred: ∀'a,'b. (((x: <@"[[", ...>) -> any) & ((x: v('b)<~@"[[", ...>) -> v1('b)<>) & ((x: { 'a }<~@"[[", ...>) -> 'a))<>
@@ -89,6 +89,26 @@ inferred: ∀'a,`a. (((x: (DBL | dbl & v('a))<~@"*", . | `a>, by: (DBL | dbl & v
   invalid: the parameters must be the definition's, in its order: (x, by, ...), not (x, by)
 (x: dbl, by: dbl?, ...: any) -> dbl && (x: int, by: int, ...: any) -> dbl
   invalid: `by` has a default in the definition, so the signature must make it optional, as in `by: <type>?`
+
+===== name_or
+inferred: (((x: null) -> "none"<>) & ((x: vec1) -> CHR1<>) & ((x: ~null) -> CHR<>))<>
+(x: null) -> CHR
+  accepted: (x: null) -> CHR
+(x: vec) -> CHR
+  accepted: (x: vec) -> CHR
+(x: vec | null) -> CHR
+  accepted: (x: vec | null) -> CHR
+
+===== field_or
+inferred: ∀'a. (((s: { a: 'a & null, any }) -> "none"<>) & ((s: { a: 'a \ null, any }) -> 'a))<>
+(s: { a: CHR1 | null }) -> CHR1
+  accepted: (s: { a: CHR1 | null }) -> CHR1
+(s: { a: CHR1? }) -> CHR1
+  rejected: untypeable application of base::$
+    argument: @({ a: CHR1? }, "a"<>)
+(s: { a: CHR1 | null? }) -> CHR1
+  rejected: untypeable application of base::$
+    argument: @({ a: (CHR1 | null)? }, "a"<>)
 
 ===== double_it, with a limit of a microsecond
 timeout (1e-06 s)

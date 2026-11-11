@@ -2,7 +2,7 @@
     conversation with it. *)
 
 (** [Script]: no API, the replies listed in a file (cf. {!of_spec}). *)
-type format = Anthropic | Openai of Openai.token_limit | Script
+type format = Anthropic | Openai of Openai.dialect | Script
 
 type config = {
   provider : string ;        (** its name, for messages *)
@@ -13,6 +13,10 @@ type config = {
   timeout : int ;            (** seconds, for a whole request *)
   connect_timeout : int ;    (** seconds *)
   retries : int ;            (** additional attempts after a transient failure *)
+  effort : string option ;   (** Anthropic only: [output_config.effort] (cf. {!Anthropic.body}) *)
+  thinking_display : string option ;
+  (** Anthropic only: whether the thinking blocks hold a summary
+      ([summarized]) or nothing ([omitted], the default of recent models) *)
 }
 
 (** The providers known by name: their format, default base URL and the

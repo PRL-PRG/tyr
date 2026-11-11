@@ -12,8 +12,9 @@ let string_of_stop = function
   | Other s -> "other: " ^ s
 
 let print_response (r : response) =
-  Printf.printf "stop: %s, tokens: %d in, %d out\n" (string_of_stop r.stop)
-    r.usage.input_tokens r.usage.output_tokens ;
+  Printf.printf "stop: %s, tokens: %d in, %d out, cache: %d read, %d written\n"
+    (string_of_stop r.stop) r.usage.input_tokens r.usage.output_tokens r.usage.cache_read
+    r.usage.cache_write ;
   Printf.printf "text: %S\n" r.assistant.text ;
   r.assistant.tool_calls |> List.iter (fun c ->
     Printf.printf "tool call %s: %s %s\n" c.id c.name (Yojson.Safe.to_string c.arguments))
@@ -47,10 +48,17 @@ let () =
       {"type": "tool_use", "id": "toolu_B", "name": "check_type", "input": {"signature": "(x: "}}
     ],
     "stop_reason": "tool_use",
-    "usage": {"input_tokens": 120, "output_tokens": 45}}|}) in
+    "usage": {"input_tokens": 120, "output_tokens": 45,
+              "cache_read_input_tokens": 3000, "cache_creation_input_tokens": 500}}|}) in
   print_response r ;
   print_endline "next request:" ;
   pp_json (Anthropic.body ~model:"claude-x" (next r.assistant)) ;
+  print_endline "with an effort and a summary of the thinking (the fields before \"messages\"):" ;
+  (match Anthropic.body ~effort:"high" ~display:"summarized" ~model:"claude-x" (next r.assistant) with
+   | `Assoc fields ->
+     fields |> List.filter (fun (k, _) -> List.mem k [ "thinking" ; "output_config" ])
+     |> List.iter (fun (k, v) -> Printf.printf "%s: %s\n" k (Yojson.Safe.to_string v))
+   | _ -> ()) ;
 
   section "OpenAI: reasoning_content, null fields, arguments as a string" ;
   let r = Openai.response (Yojson.Safe.from_string {|{
@@ -62,13 +70,21 @@ let () =
         {"id": "call_1", "type": "function", "function": {"name": "check_type", "arguments": "{\"signature\": \"(x: dbl) -> dbl\"}"}},
         {"id": "abc123XYZ", "type": "function", "function": {"name": "check_type", "arguments": "{not json"}}
       ]}}],
-    "usage": {"prompt_tokens": 200, "completion_tokens": 30}}|}) in
+    "usage": {"prompt_tokens": 200, "completion_tokens": 30,
+              "prompt_tokens_details": {"cached_tokens": 150}}}|}) in
   print_response r ;
   print_endline "next request (max_tokens):" ;
   pp_json (Openai.body ~model:"glm" (next r.assistant)) ;
   print_endline "the token limit, OpenAI's own:" ;
-  (match Openai.body ~token_limit:Max_completion_tokens ~model:"gpt" (next r.assistant) with
+  (match Openai.body ~dialect:Openai.openai ~model:"gpt" (next r.assistant) with
    | `Assoc fields -> List.iter (fun (k, _) -> if String.starts_with ~prefix:"max" k then print_endline k) fields
+   | _ -> ()) ;
+  print_endline "Mistral's fields (it rejects seed, and temperature 0 unless top_p is 1):" ;
+  (match Openai.body ~dialect:Openai.mistral ~model:"mistral-large-4" (next r.assistant) with
+   | `Assoc fields ->
+     fields |> List.iter (fun (k, v) ->
+       if List.mem k [ "random_seed" ; "seed" ; "temperature" ; "top_p" ; "prompt_cache_key" ] then
+         Printf.printf "%s: %s\n" k (Yojson.Safe.to_string v))
    | _ -> ()) ;
 
   section "OpenAI: content as parts, finish_reason stop with a tool call" ;
@@ -112,8 +128,9 @@ let () =
     match Client.of_spec s with
     | c -> Printf.printf "%s: %s, %s, model %s, %s\n" s c.provider c.base_url c.model
              (match c.format with Anthropic -> "anthropic"
-                                | Openai Max_tokens -> "openai/max_tokens"
-                                | Openai Max_completion_tokens -> "openai/max_completion_tokens"
+                                | Openai { token_limit = Max_tokens ; seed ; _ } -> "openai/max_tokens/" ^ seed
+                                | Openai { token_limit = Max_completion_tokens ; seed ; _ } ->
+                                  "openai/max_completion_tokens/" ^ seed
                                 | Script -> "script")
     | exception Failure m -> Printf.printf "%s: %s\n" s m in
   List.iter spec [ "einfra:glm-5.3" ; "einfra:glm-5.3:high" ; "mistral:mistral-large-4" ;

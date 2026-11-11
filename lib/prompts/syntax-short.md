@@ -35,7 +35,8 @@ A type is a set of R values; subtyping is set inclusion.
 
 `{ a: T, b: U }` (exactly the fields `a` and `b`), `{ a: T, U }` (field `a`,
 every other element of type `U`), `{ T }` (any number of `T`), `{ any }` (any
-list), `{ a: T? }` (`a` may be absent).
+list), `{ a: T? }` (`a` may be absent), `{ a: T | null }` (`a` may be
+`NULL`).
 
 ## Classes and attributes
 
@@ -50,6 +51,9 @@ class `cls`), `<cls, ...>` (at least `cls`), `<>` (no class), and
 - the parameters are the R function's formals, **same names, same order**;
 - `?` marks an optional parameter: every parameter with a default value, or
   only used under `if (!missing(p))`, needs it;
+- `?` means *may be missing*, never *may be `NULL`*: a parameter or field
+  that may be `NULL` is `T | null`, and a parameter whose default is `NULL`
+  (`function(x = NULL)`) is `x: T | null?`;
 - `...: V` types the extra arguments (`...: any` if anything goes);
 - `->`, not `-->`.
 

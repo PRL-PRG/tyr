@@ -46,7 +46,14 @@ type request = {
     [stop]. *)
 type stop = End_turn | Tool_use | Max_tokens | Other of string
 
-type usage = { input_tokens : int ; output_tokens : int }
+(** The tokens of one turn. [input_tokens] are those billed at the full
+    price; [cache_read] the input read from the provider's prompt cache (about
+    a tenth of the price at Anthropic), [cache_write] the input written to it
+    (a quarter more than the full price). The whole prompt is the sum of the
+    three. [raw] is the provider's own [usage] object ([`Null] if there is
+    none), whose fields differ between providers. *)
+type usage = {
+  input_tokens : int ; output_tokens : int ; cache_read : int ; cache_write : int ; raw : json }
 
 type response = { assistant : assistant ; stop : stop ; usage : usage }
 

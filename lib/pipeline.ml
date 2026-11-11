@@ -592,6 +592,8 @@ let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
         ("llm_checks", get (fun _ r -> R.I r.checks)) ;
         ("llm_input_tokens", get (fun _ r -> R.I r.input_tokens)) ;
         ("llm_output_tokens", get (fun _ r -> R.I r.output_tokens)) ;
+        ("llm_cache_read_tokens", get (fun _ r -> R.I r.cache_read)) ;
+        ("llm_cache_write_tokens", get (fun _ r -> R.I r.cache_write)) ;
         ("llm_elapsed_sec", get (fun _ r -> R.F r.elapsed)) ;
         ("llm_tried", R.B tried) ; ("llm_skipped", opt_s llm_skipped) ] in
     let loc_fields =
@@ -627,7 +629,9 @@ let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
           bump rep (match r.outcome with
             | Typed _ -> "r_n_llm_typed" | Gave_up _ -> "r_n_llm_gave_up" | Failed _ -> "r_n_llm_error") ;
           add_stat rep "r_n_llm_input_tokens" r.input_tokens ;
-          add_stat rep "r_n_llm_output_tokens" r.output_tokens)
+          add_stat rep "r_n_llm_output_tokens" r.output_tokens ;
+          add_stat rep "r_n_llm_cache_read_tokens" r.cache_read ;
+          add_stat rep "r_n_llm_cache_write_tokens" r.cache_write)
       end
     end ;
     ctx')

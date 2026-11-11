@@ -13,7 +13,9 @@
    - [wrong] has no type at all; [mutual_a] has none on its own either, as
      [mutual_b] is not bound yet;
    - [scale_by]: a signature must have the definition's parameters, in its
-     order, those with a default optional, in each of its arrows. *)
+     order, those with a default optional, in each of its arrows;
+   - [name_or], [field_or]: [T | null] is a value that may be [NULL], [T?] one
+     that may be missing (cf. the short syntax of the prompt). *)
 
 open Lang
 module SC = Tyr.Signature_check
@@ -32,6 +34,9 @@ let cases = [
                 "(x: dbl, ...: any) -> dbl" ; "(by: dbl?, x: dbl, ...: any) -> dbl" ;
                 "(x: dbl, by: dbl?) -> dbl" ;
                 "(x: dbl, by: dbl?, ...: any) -> dbl && (x: int, by: int, ...: any) -> dbl" ] ;
+  "name_or", [ "(x: null) -> CHR" ; "(x: vec) -> CHR" ; "(x: vec | null) -> CHR" ] ;
+  "field_or", [ "(s: { a: CHR1 | null }) -> CHR1" ; "(s: { a: CHR1? }) -> CHR1" ;
+                "(s: { a: CHR1 | null? }) -> CHR1" ] ;
 ]
 
 let timeout = Some 20.

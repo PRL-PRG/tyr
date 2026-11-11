@@ -4,15 +4,18 @@
     The model gets the definition and what the context options select
     ({!part}), and one tool, [check_type], which checks the definition against
     a signature ({!Signature_check}). It has a few turns. Only signatures the
-    tool accepted count: the model's final message either accepts (the last
-    accepted signature is kept, or the one it names if that one was accepted)
-    or gives up with a short explanation. Out of turns with nothing accepted,
-    the model is asked once more to conclude, so that it says why; out of
-    turns otherwise, or when the API fails, the last accepted signature is
-    kept. A signature whose parameters and result are all [any] is refused: it
-    says nothing. A rejection that repeats inference's error says so, since
-    no signature can then help; a turn whose checks all get it ends the
-    conversation.
+    tool accepted count: the model's final message either accepts (the one it
+    names if that one was accepted, the last accepted otherwise) or gives up
+    with a short explanation. Out of turns with nothing accepted, the model
+    is asked once more to conclude, so that it says why; out of turns
+    otherwise, or when the API fails, the last accepted signature is kept.
+    Whichever is kept, an accepted signature that is strictly better (a
+    subtype: it accepts more arguments, or says more of the result) replaces
+    it. Two accepted signatures neither of which includes the other get a
+    note suggesting one that accepts the arguments of both. A signature whose
+    parameters and result are all [any] is refused: it says nothing. A
+    rejection that repeats inference's error says so, since no signature can
+    then help; a turn whose checks all get it ends the conversation.
 
     Inference's result is not touched: the pipeline reports the fallback's
     outcome next to it, and binds an accepted type for the definitions that
@@ -151,8 +154,10 @@ type result = {
   outcome : outcome ;
   turns : int ;
   checks : int ;
-  input_tokens : int ;
+  input_tokens : int ;    (** billed at the full price (cf. {!Llm.Conversation.usage}) *)
   output_tokens : int ;
+  cache_read : int ;      (** input read from the provider's prompt cache *)
+  cache_write : int ;     (** input written to it *)
   elapsed : float ;
 }
 
@@ -168,6 +173,48 @@ let system_logged = ref false
 let trivial (a : Signature_check.accepted) =
   Report.trivial a.printed
 
+(* The arrows of an accepted signature: for each, its parameters with their
+   field types (optionality included), and its result. [None] if it is not a
+   function, or its domain does not take apart. Rsem gives the domain of each
+   signature an identifier of its own, so two signatures' types never compare
+   whole: they are compared parameter by parameter. Accepted types are the
+   signatures the model wrote, small enough for this to be cheap. *)
+let arrows (a : Signature_check.accepted) =
+  let open Mlsem.Types in
+  let ty = TyScheme.get a.ty |> snd |> GTy.ub in
+  let content = if Ty.leq ty Rstt.Attr.any then Rstt.Attr.proj_content ty else ty in
+  if Ty.is_empty content || not (Ty.leq content Arrow.any) then None
+  else
+    try
+      Some (Arrow.dnf content |> List.concat_map (List.map (fun (dom, codom) ->
+        (* The domain's readings, one per split of the parameters between
+           positional and named: the longest has them all. *)
+        let params =
+          Rstt.Arg.destruct dom |> List.filter_map (function
+            | Rstt.Arg.DefSite d -> Some (d.pos_named @ d.named)
+            | Rstt.Arg.CallSite _ -> None)
+          |> List.fold_left (fun acc ps -> if List.length ps > List.length acc then ps else acc) [] in
+        (params, codom))))
+    with Invalid_argument _ -> None
+
+(* Whether [a] is at least as good a signature as [b]: one arrow each, the
+   same parameters, each accepting at least what [b]'s accepts, and a result
+   that says at least as much. Anything else is not compared. *)
+let better a b =
+  let fleq f g = Rstt.Ty.F.equiv (Rstt.Ty.F.cap f g) f in
+  match arrows a, arrows b with
+  | Some [ (pa, ra) ], Some [ (pb, rb) ] when List.map fst pa = List.map fst pb ->
+    Mlsem.Types.Ty.leq ra rb
+    && List.for_all2 (fun (_, fa) (_, fb) -> fleq fb fa) pa pb
+  | _ -> false
+
+(* The best of the [accepted] signatures, from [chosen]: one strictly better
+   than it if there is one, and so on. *)
+let rec best accepted ((_, a) as chosen) =
+  match List.find_opt (fun (_, b) -> better b a && not (better a b)) accepted with
+  | Some c -> best accepted c
+  | None -> chosen
+
 (* Whether a rejection is the error inference reported: same title, same
    first line of description (the witness below may differ). *)
 let same_error (u : Report.untypeable) = function
@@ -179,7 +226,7 @@ let same_error (u : Report.untypeable) = function
 (* The answer to one check, whether it is an error, the accepted signature it
    yields if any, and whether it is a rejection with inference's error
    ([inference], if it reported one). *)
-let answer ~check ?inference signature =
+let answer ~check ?inference ?(previous = []) signature =
   let plain (content, is_error, ok) = content, is_error, ok, false in
   match check signature with
   | Signature_check.Accepted a when trivial a ->
@@ -193,7 +240,15 @@ let answer ~check ?inference signature =
            [ "note: the result is `any`: this says nothing about what the function \
               returns. If the body shows what it returns, check a more precise result." ]
          else [])
-      @ (if a.degenerate then [ "note: this type says the function never returns" ] else []) in
+      @ (if a.degenerate then [ "note: this type says the function never returns" ] else [])
+      (* Two accepted signatures neither of which includes the other: one
+         accepting the arguments of both may be accepted too, and better. *)
+      @ (match List.find_opt (fun (_, b) -> not (better a b) && not (better b a)) previous with
+         | Some (s, _) ->
+           [ Printf.sprintf "note: neither this signature nor `%s`, accepted before, includes \
+                             the other. One that accepts the arguments of both, e.g. with the \
+                             union of their parameter types, may be accepted too, and is better." s ]
+         | None -> []) in
     plain (String.concat "\n" (("accepted: " ^ a.printed) :: notes), false, Some (signature, a))
   | Signature_check.Invalid m -> plain ("invalid signature: " ^ m, true, None)
   | Signature_check.Rejected u ->
@@ -234,7 +289,7 @@ let conclude text accepted =
        otherwise. *)
     let named = Option.bind done_sig (fun d ->
       List.find_opt (fun (s', _) -> String.trim s' = d) accepted) in
-    let signature, accepted = Option.value named ~default:(s, a) in
+    let signature, accepted = best accepted (Option.value named ~default:(s, a)) in
     Typed { signature ; accepted }
   | None, Some d, [] when d <> "" -> Gave_up ("claimed a signature that was not accepted: " ^ d)
   | None, _, [] -> Gave_up ("no signature accepted: " ^ shorten 300 (String.trim text))
@@ -252,6 +307,7 @@ let run cfg ~complete ~check (i : input) =
       ("context", `List (List.map (fun p -> `String (string_of_part p)) cfg.context)) ;
       ("text", `String user) ] ;
   let accepted = ref [] and checks = ref 0 and tin = ref 0 and tout = ref 0 in
+  let cread = ref 0 and cwrite = ref 0 in
   let finish outcome turns =
     let fields = match outcome with
       | Typed t -> [ ("outcome", `String "typed") ; ("signature", `String t.signature) ;
@@ -260,11 +316,13 @@ let run cfg ~complete ~check (i : input) =
       | Failed m -> [ ("outcome", `String "error") ; ("explanation", `String m) ] in
     log cfg "llm_end" (("def", `String i.name) :: fields) ;
     { outcome ; turns ; checks = !checks ; input_tokens = !tin ; output_tokens = !tout ;
-      elapsed = Unix.gettimeofday () -. t0 } in
+      cache_read = !cread ; cache_write = !cwrite ; elapsed = Unix.gettimeofday () -. t0 } in
   (* Out of turns, or of API: the last accepted signature, if any. *)
   let last_accepted ~otherwise n =
     match !accepted with
-    | (signature, accepted) :: _ -> finish (Typed { signature ; accepted }) n
+    | c :: _ ->
+      let signature, accepted = best !accepted c in
+      finish (Typed { signature ; accepted }) n
     | [] -> finish otherwise n in
   let inference = match i.failure with Untypeable u -> Some u | Timed_out _ -> None in
   (* The model's last message, when it checks nothing more. *)
@@ -289,6 +347,8 @@ let run cfg ~complete ~check (i : input) =
     | r ->
       tin := !tin + r.usage.input_tokens ;
       tout := !tout + r.usage.output_tokens ;
+      cread := !cread + r.usage.cache_read ;
+      cwrite := !cwrite + r.usage.cache_write ;
       let results =
         if last then []
         else r.assistant.tool_calls |> List.map (fun (c : tool_call) ->
@@ -296,7 +356,7 @@ let run cfg ~complete ~check (i : input) =
           let content, is_error, signature, same = match c.name, signature with
             | "check_type", Some s ->
               incr checks ;
-              let content, is_error, ok, same = answer ~check ?inference s in
+              let content, is_error, ok, same = answer ~check ?inference ~previous:!accepted s in
               Option.iter (fun a -> accepted := a :: !accepted) ok ;
               content, is_error, Some s, same
             | "check_type", None -> "missing argument: signature", true, None, false
@@ -312,6 +372,8 @@ let run cfg ~complete ~check (i : input) =
         [ ("def", `String i.name) ; ("turn", `Int n) ; ("closing", `Bool last) ;
           ("reply", r.assistant.raw) ;
           ("input_tokens", `Int r.usage.input_tokens) ; ("output_tokens", `Int r.usage.output_tokens) ;
+          ("cache_read", `Int r.usage.cache_read) ; ("cache_write", `Int r.usage.cache_write) ;
+          ("usage", r.usage.raw) ;
           ("checks", `List (results |> List.map (fun ((s, _), (res : tool_result)) ->
              `Assoc [ ("signature", match s with Some s -> `String s | None -> `Null) ;
                       ("answer", `String res.content) ]))) ] ;
