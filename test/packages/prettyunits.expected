@@ -42,12 +42,12 @@ name: match
 ===== packages/prettyunits/R/rounding.R =====
 pretty_round: Untypeable: untypeable application of base::[]
 Line 39, characters 8-23
-argument: @((CHR | LGL) | v('I781), lgl<>)
+argument: @((CHR | LGL) | v('I782), lgl<>)
 failing call: base::[](NA, as.raw(0))
 
 pretty_signif: Untypeable: untypeable application of base::round
 Line 112, characters 27-58
-argument: @((dbl & v('I965))<>, digits: (DBL | INT | LGL) | v('I1000))
+argument: @((dbl & v('I966))<>, digits: (DBL | INT | LGL) | v('I1001))
 failing call: base::round(as.raw(0), digits = NA)
 
 
