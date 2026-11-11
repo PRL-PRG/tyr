@@ -239,6 +239,13 @@ turns 3, checks 2, tokens 300 in, 30 out
 gave up: the model gave no answer
 turns 2, checks 1, tokens 200 in, 20 out
 
+===== count_na: a signature no call can match (an empty parameter) is refused
+  -> rejected: no call can match this signature (a parameter of type `empty` accepts no argument), so it says nothing. Give the types of the arguments the function is called with.
+  -> accepted: (v: any) -> INT1
+     note: typed `any`: v
+typed: (v: any) -> INT1 (checked as (v: any) -> INT1)
+turns 3, checks 2, tokens 300 in, 30 out
+
 ===== count_na: the turn limit with a signature accepted: no question asked
 typed: (v: any) -> INT1 (checked as (v: any) -> INT1)
 turns 1, checks 1, tokens 100 in, 10 out

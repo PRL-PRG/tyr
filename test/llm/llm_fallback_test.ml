@@ -67,6 +67,9 @@ let cases = [
        Some (reply ~text:"GIVE UP: toupper is given a list whatever x is." []) ] ;
   "wrong", "the turn limit: asked to conclude, the model checks again (not run)", false,
   1, [ Some (reply [ "(x: any) -> chr" ]) ; Some (reply [ "(x: dbl) -> chr" ]) ] ;
+  "count_na", "a signature no call can match (an empty parameter) is refused", false,
+  4, [ Some (reply [ "(v: empty) -> empty" ]) ; Some (reply [ "(v: any) -> INT1" ]) ;
+       Some (reply ~text:"DONE: (v: any) -> INT1" []) ] ;
   "count_na", "the turn limit with a signature accepted: no question asked", false,
   1, [ Some (reply [ "(v: any) -> INT1" ]) ] ;
   "double_it", "the model runs out of output tokens", false,

@@ -173,6 +173,17 @@ let system_logged = ref false
 let trivial (a : Signature_check.accepted) =
   Report.trivial a.printed
 
+(* A signature no call can satisfy: a parameter of type [empty] (not
+   optional) leaves an empty domain, and a function type with an empty
+   domain includes every function type ([empty -> t] is the top arrow,
+   printed [arrow]). It says nothing, and bound, it makes every call to the
+   definition untypeable. *)
+let uncallable (a : Signature_check.accepted) =
+  let open Mlsem.Types in
+  let ty = TyScheme.get a.ty |> snd |> GTy.ub in
+  let content = if Ty.leq ty Rstt.Attr.any then Rstt.Attr.proj_content ty else ty in
+  Ty.leq Arrow.any content
+
 (* The arrows of an accepted signature: for each, its parameters with their
    field types (optionality included), and its result. [None] if it is not a
    function, or its domain does not take apart. Rsem gives the domain of each
@@ -232,6 +243,10 @@ let answer ~check ?inference ?(previous = []) signature =
   | Signature_check.Accepted a when trivial a ->
     plain ("rejected: too imprecise: every parameter and the result are `any`. \
             Give a more precise signature.", true, None)
+  | Signature_check.Accepted a when uncallable a ->
+    plain ("rejected: no call can match this signature (a parameter of type `empty` \
+            accepts no argument), so it says nothing. Give the types of the arguments \
+            the function is called with.", true, None)
   | Signature_check.Accepted a ->
     let notes =
       (if a.any_args = [] then []
