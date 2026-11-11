@@ -145,7 +145,7 @@ unbound_after_call <- function(x) { y <- nchar(x) ; undefined_fn(y) }
 bound_after_call <- function(x) { y <- nchar(x) ; length(y) }
 
 # ---- (5) A function used before it is defined, in the same file ------------
-# TypR reorders these, so this pair type-checks; mutual recursion below does
+# tyr reorders these, so this pair type-checks; mutual recursion below does
 # not, no order being able to satisfy it.
 uses_later <- function(x) defined_later(x)
 defined_later <- function(x) x
