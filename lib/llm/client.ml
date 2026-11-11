@@ -147,7 +147,7 @@ let http_request cfg r =
           Anthropic.response)
   | Openai dialect ->
     Some (cfg.base_url ^ Openai.path, Openai.headers ~api_key:cfg.api_key,
-          Openai.body ~dialect ~model:cfg.model r, Openai.response)
+          Openai.body ~dialect ?effort:cfg.effort ~model:cfg.model r, Openai.response)
   | Script -> None
 
 let complete ?cache cfg (r : Conversation.request) =

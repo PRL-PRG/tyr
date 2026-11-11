@@ -137,6 +137,8 @@ temperature: 0.0
 top_p: 1.0
 prompt_cache_key: "tyr-llm-fallback"
 random_seed: 7
+the reasoning effort:
+"low"
 
 ===== OpenAI: content as parts, finish_reason stop with a tool call =====
 stop: end_turn, tokens: 0 in, 0 out, cache: 0 read, 0 written

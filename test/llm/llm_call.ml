@@ -26,11 +26,17 @@ let system =
 let prompt = "Type this definition:\n\nf <- function(x) x * 2\n"
 
 let () =
-  let spec, raw = match Array.to_list Sys.argv with
-    | [ _ ; spec ] -> spec, false
-    | [ _ ; spec ; "--raw" ] -> spec, true
-    | _ -> prerr_endline "usage: llm_call provider:model [--raw]" ; exit 2 in
+  let usage () = prerr_endline "usage: llm_call provider:model [--raw] [--effort LEVEL]" ; exit 2 in
+  let rec args (spec, raw, effort) = function
+    | [] -> (spec, raw, effort)
+    | "--raw" :: l -> args (spec, true, effort) l
+    | "--effort" :: e :: l -> args (spec, raw, Some e) l
+    | s :: l when spec = None && s.[0] <> '-' -> args (Some s, raw, effort) l
+    | _ -> usage () in
+  let spec, raw, effort = args (None, false, None) (List.tl (Array.to_list Sys.argv)) in
+  let spec = match spec with Some s -> s | None -> usage () in
   let cfg = try Client.of_spec spec with Failure m -> prerr_endline m ; exit 2 in
+  let cfg = { cfg with effort } in
   Printf.printf "%s, model %s, at %s\n%!" cfg.provider cfg.model cfg.base_url ;
   let checks = ref 0 in
   let answer (c : tool_call) =

@@ -63,7 +63,10 @@ let tool (t : tool) =
            ("function", `Assoc [ ("name", `String t.name) ; ("description", `String t.description) ;
                                  ("parameters", t.parameters) ]) ]
 
-let body ?(dialect = standard) ~model (r : request) : json =
+(** [effort]: [reasoning_effort], how much a reasoning model thinks. The
+    levels are the provider's (Muse Spark: [minimal] to [max]; OpenAI: [minimal] to
+    [high]); left out, the model's own default. *)
+let body ?(dialect = standard) ?effort ~model (r : request) : json =
   let token_limit = dialect.token_limit in
   let system =
     if r.system = "" then []
@@ -80,6 +83,7 @@ let body ?(dialect = standard) ~model (r : request) : json =
         | Some 0. when dialect.greedy_top_p -> [ ("top_p", `Float 1.) ]
         | _ -> [])
     @ (match dialect.cache_key with Some k -> [ ("prompt_cache_key", `String k) ] | None -> [])
+    @ (match effort with Some e -> [ ("reasoning_effort", `String e) ] | None -> [])
     @ (match r.seed with Some s -> [ (dialect.seed, `Int s) ] | None -> []))
 
 let response (j : json) : response =

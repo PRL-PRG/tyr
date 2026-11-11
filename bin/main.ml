@@ -97,9 +97,10 @@ let speclist =
      "DIR  Cache the model's replies there, and reuse them") ;
     ("--llm-transcript", Arg.String (fun f -> llm_transcript := Some f),
      "FILE  Write the conversations there (one JSON record per line)") ;
-    ("--llm-effort", Arg.Symbol ([ "low" ; "medium" ; "high" ; "xhigh" ; "max" ],
-                                 fun e -> llm_effort := Some e),
-     " How much the model thinks (Anthropic only; default: the model's own)") ;
+    ("--llm-effort", Arg.String (fun e -> llm_effort := Some e),
+     "LEVEL  How much the model thinks (default: the model's own). Anthropic: \
+      low|medium|high|xhigh|max; other providers: their reasoning_effort \
+      (Muse Spark: minimal|low|medium|high|xhigh|max)") ;
     ("--llm-thinking-display", Arg.Symbol ([ "summarized" ; "omitted" ],
                                            fun d -> llm_thinking_display := Some d),
      " Whether the transcript gets a summary of the model's thinking (Anthropic only)") ]
@@ -138,9 +139,13 @@ let () =
       try
         !llm |> Option.map (fun spec ->
           let client = Llm.Client.of_spec spec in
-          if (!llm_effort <> None || !llm_thinking_display <> None)
-          && client.format <> Llm.Client.Anthropic then
-            failwith "--llm-effort and --llm-thinking-display are only for the anthropic provider" ;
+          if !llm_thinking_display <> None && client.format <> Llm.Client.Anthropic then
+            failwith "--llm-thinking-display is only for the anthropic provider" ;
+          (match !llm_effort with
+           | Some e when client.format = Llm.Client.Anthropic
+                      && not (List.mem e [ "low" ; "medium" ; "high" ; "xhigh" ; "max" ]) ->
+             failwith (e ^ ": the anthropic effort is one of low, medium, high, xhigh, max")
+           | _ -> ()) ;
           let client = { client with effort = !llm_effort ;
                                      thinking_display = !llm_thinking_display } in
           { Tyr.Llm_fallback.client ;

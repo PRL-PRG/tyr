@@ -13,7 +13,7 @@ type config = {
   timeout : int ;            (** seconds, for a whole request *)
   connect_timeout : int ;    (** seconds *)
   retries : int ;            (** additional attempts after a transient failure *)
-  effort : string option ;   (** Anthropic only: [output_config.effort] (cf. {!Anthropic.body}) *)
+  effort : string option ;   (** [output_config.effort] for Anthropic, [reasoning_effort] otherwise *)
   thinking_display : string option ;
   (** Anthropic only: whether the thinking blocks hold a summary
       ([summarized]) or nothing ([omitted], the default of recent models) *)

@@ -86,6 +86,10 @@ let () =
        if List.mem k [ "random_seed" ; "seed" ; "temperature" ; "top_p" ; "prompt_cache_key" ] then
          Printf.printf "%s: %s\n" k (Yojson.Safe.to_string v))
    | _ -> ()) ;
+  print_endline "the reasoning effort:" ;
+  (match Openai.body ~effort:"low" ~model:"muse-spark-1.3" (next r.assistant) with
+   | `Assoc fields -> print_endline (Yojson.Safe.to_string (List.assoc "reasoning_effort" fields))
+   | _ -> ()) ;
 
   section "OpenAI: content as parts, finish_reason stop with a tool call" ;
   print_response (Openai.response (Yojson.Safe.from_string {|{
