@@ -44,7 +44,7 @@ calls. No signature will be accepted: give up.
 ## How to finish
 
 You have at most {{max_turns}} turns: each of your messages is a turn, and
-may check several signatures at once.
+{{per_turn}}
 
 - Once a signature you are satisfied with is accepted, answer with one line:
   `DONE: <the accepted signature>`.

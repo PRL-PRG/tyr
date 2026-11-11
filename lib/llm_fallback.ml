@@ -62,6 +62,7 @@ type config = {
   context : part list ;
   syntax : syntax ;
   max_turns : int ;
+  candidates : int ;                  (** signatures to check per turn; 1: as many as the model likes *)
   max_tokens : int ;                  (** output tokens per turn, reasoning included *)
   bind : bool ;                       (** bind an accepted type for what follows *)
   cache : string option ;             (** cf. {!Llm.Client.complete} *)
@@ -92,6 +93,13 @@ let system_prompt cfg =
     | Full -> Prompts.type_system ^ "\n\n" ^ Prompts.annotation_guide in
   Prompts.system
   |> replace "{{max_turns}}" (string_of_int cfg.max_turns)
+  |> replace "{{per_turn}}"
+    (if cfg.candidates <= 1 then "may check several signatures at once."
+     else Printf.sprintf
+         "must check %d different signatures at once. Where you are unsure, \
+          vary them (a narrower and a wider type for a parameter, another \
+          result): each turn then tells you more. Never check a signature twice."
+         cfg.candidates)
   |> replace "{{syntax}}" syntax
   |> String.trim
 

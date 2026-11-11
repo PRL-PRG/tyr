@@ -140,6 +140,11 @@ There is no `numeric`, `character`, `logical`, `integer`, `list<T>`, `T[]`,
 (bytes: DBL | INT, smallest_unit: CHR1?) -> { amount: DBL, unit: CHR, negative: LGL }<data.frame>
 ```
 
+===== The turns, with three candidates asked per turn
+
+You have at most 4 turns: each of your messages is a turn, and
+must check 3 different signatures at once. Where you are unsure, vary them (a narrower and a wider type for a parameter, another result): each turn then tells you more. Never check a signature twice.
+
 ===== The prompt of fact, with every part
 
 Find a signature of `fact`.

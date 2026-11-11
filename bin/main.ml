@@ -6,7 +6,7 @@ let usage =
   \      [--fuzz-runner CMD [--fuzz-harness DIR] [--fuzz-samples N] [--fuzz-seed N]\n\
   \       [--fuzz-dir DIR] [--fuzz-call-timeout SECONDS]]\n\
   \      [--llm PROVIDER:MODEL [--llm-context PARTS] [--llm-syntax short|full]\n\
-  \       [--llm-max-turns N] [--llm-max-tokens N] [--llm-no-bind] [--llm-cache DIR]\n\
+  \       [--llm-max-turns N] [--llm-candidates N] [--llm-max-tokens N] [--llm-no-bind] [--llm-cache DIR]\n\
   \       [--llm-transcript FILE] [--llm-effort LEVEL] [--llm-thinking-display MODE]]\n\
   \      [-I DIR] <package-directory>"
 
@@ -36,6 +36,7 @@ let llm = ref None
 let llm_context = ref None
 let llm_syntax = ref "short"
 let llm_max_turns = ref 4
+let llm_candidates = ref 1
 let llm_max_tokens = ref 32768
 let llm_bind = ref true
 let llm_cache = ref None
@@ -89,6 +90,8 @@ let speclist =
     ("--llm-syntax", Arg.Symbol ([ "short" ; "full" ], fun s -> llm_syntax := s),
      " How the type language is explained: a short reference (the default) or the full documents") ;
     ("--llm-max-turns", Arg.Set_int llm_max_turns, "N  Turns per definition (default 4)") ;
+    ("--llm-candidates", Arg.Set_int llm_candidates,
+     "N  Ask the model to check N different signatures each turn (default: as many as it likes)") ;
     ("--llm-max-tokens", Arg.Set_int llm_max_tokens,
      "N  Output tokens per turn, reasoning included (default 32768)") ;
     ("--llm-no-bind", Arg.Clear llm_bind,
@@ -153,7 +156,7 @@ let () =
               | Some s -> Tyr.Llm_fallback.parts_of_string s
               | None -> Tyr.Llm_fallback.default_context) ;
             syntax = (if !llm_syntax = "full" then Full else Short) ;
-            max_turns = max 1 !llm_max_turns ; max_tokens = max 256 !llm_max_tokens ;
+            max_turns = max 1 !llm_max_turns ; candidates = !llm_candidates ; max_tokens = max 256 !llm_max_tokens ;
             bind = !llm_bind ; cache = !llm_cache ;
             transcript = Option.map open_out !llm_transcript })
       with Failure m | Sys_error m -> Printf.eprintf "tyr: --llm: %s\n" m ; exit 2 in

@@ -10,7 +10,7 @@ module SC = Tyr.Signature_check
 
 let cfg ?(max_turns = 4) () = {
   F.client = Llm.Client.of_spec "script:none" ; context = F.default_context ; syntax = F.Short ;
-  max_turns ; max_tokens = 4096 ; bind = true ; cache = None ; transcript = None }
+  max_turns ; candidates = 1 ; max_tokens = 4096 ; bind = true ; cache = None ; transcript = None }
 
 (* A reply of the model: its text, and the signatures it checks. *)
 let reply ?(text = "") ?stop checks =
@@ -114,6 +114,11 @@ let () =
   let prelude = parse "prelude/base.R" and file = parse "signatures.R" in
   print_endline "===== The system prompt (short syntax)\n" ;
   print_endline (F.system_prompt (cfg ())) ;
+  print_endline "\n===== The turns, with three candidates asked per turn\n" ;
+  F.system_prompt { (cfg ()) with candidates = 3 } |> String.split_on_char '\n'
+  |> List.filter (fun l -> String.starts_with ~prefix:"You have at most" l
+                           || String.starts_with ~prefix:"must check" l)
+  |> List.iter print_endline ;
   print_endline "\n===== The prompt of fact, with every part\n" ;
   let all = { (cfg ()) with context = List.map snd F.part_names } in
   print_string (F.user_prompt all (input ~name:"fact" ~source:"fact <- function(n) ..." ())) ;
