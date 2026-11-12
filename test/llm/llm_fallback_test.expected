@@ -328,3 +328,7 @@ turns 1, checks 2, tokens 100 in, 10 out
 ===== double_it: a signature claimed but never checked
 gave up: claimed a signature that was not accepted: (x: dbl) -> dbl
 turns 1, checks 0, tokens 100 in, 10 out
+
+===== ones: inference's error with another argument type, the same failing call: the conversation ends
+gave up: every signature checked was rejected with inference's error (untypeable application of base::array): the failure does not depend on the signature
+turns 1, checks 2, tokens 100 in, 10 out

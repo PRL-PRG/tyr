@@ -103,10 +103,19 @@ let mismatch past (annot : R_types.Sigs.annot) =
                   (fst (List.hd required))))
   | _ -> None
 
+(* [name] as an annotation writes it. A name the annotation lexer does not
+   read as an identifier (cf. [id] in Rsem's [r-types/lexer.mll]), such as
+   the method of an operator ([[<-.yearmon], [!=.vctrs_vctr]) or a
+   user-defined operator ([%+%]), goes in parentheses, as in
+   [base::([].difftime)]. *)
+let annotation_name name =
+  if Str.string_match (Str.regexp "[a-zA-Z_.][]a-zA-Z0-9_'?!+[$@<>.-]*$") name 0 then name
+  else "(" ^ name ^ ")"
+
 (* The signature [signature] of [name], registered in [ctx]: the context
    [treat_def] then checks the definition [past] of [name] in. *)
 let declare ctx past ~name signature =
-  match R_types.IO.parse_def (name ^ " : " ^ signature) with
+  match R_types.IO.parse_def (annotation_name name ^ " : " ^ signature) with
   | exception (Rstt_repl.IO.SyntaxError (_, m) | R_types.IO.SyntaxError (_, m)) ->
     Error (if m = "syntax error" then m else "syntax error: " ^ m)
   | exception Invalid_argument m -> Error m

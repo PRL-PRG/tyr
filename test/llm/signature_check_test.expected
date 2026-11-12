@@ -110,5 +110,15 @@ inferred: ∀'a. (((s: { a: 'a & null, any }) -> "none"<>) & ((s: { a: 'a \ null
   rejected: untypeable application of base::$
     argument: @({ a: (CHR1 | null)? }, "a"<>)
 
+===== [.mybox
+inferred: ∀'a,'b. (((x: v('b), i: CHR | DBL | INT | LGL | RAW) -> v('b)<>) & ((x: { 'a }, i: CHR | DBL | INT | LGL | RAW) -> { 'a }<>))<>
+(x: dbl, i: dbl) -> dbl
+  accepted: (x: dbl, i: dbl) -> dbl
+
+===== %+%
+inferred: (((a: any, b: any) -> CHR<>) & ((a: vec1, b: vec1) -> CHR1<>))<>
+(a: chr, b: chr) -> CHR
+  accepted: (a: vec, b: vec) -> CHR
+
 ===== double_it, with a limit of a microsecond
 timeout (1e-06 s)

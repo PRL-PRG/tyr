@@ -15,7 +15,9 @@
    - [scale_by]: a signature must have the definition's parameters, in its
      order, those with a default optional, in each of its arrows;
    - [name_or], [field_or]: [T | null] is a value that may be [NULL], [T?] one
-     that may be missing (cf. the short syntax of the prompt). *)
+     that may be missing (cf. the short syntax of the prompt);
+   - [[.mybox], [%+%]: names that are not identifiers for the annotation
+     lexer, the method of an operator and a user-defined operator. *)
 
 open Lang
 module SC = Tyr.Signature_check
@@ -37,6 +39,8 @@ let cases = [
   "name_or", [ "(x: null) -> CHR" ; "(x: vec) -> CHR" ; "(x: vec | null) -> CHR" ] ;
   "field_or", [ "(s: { a: CHR1 | null }) -> CHR1" ; "(s: { a: CHR1? }) -> CHR1" ;
                 "(s: { a: CHR1 | null? }) -> CHR1" ] ;
+  "[.mybox", [ "(x: dbl, i: dbl) -> dbl" ] ;
+  "%+%", [ "(a: chr, b: chr) -> CHR" ] ;
 ]
 
 let timeout = Some 20.

@@ -20,3 +20,9 @@ scale_by <- function(x, by = 2, ...) x * by
 name_or <- function(x) if (is.null(x)) "none" else paste(x)
 
 field_or <- function(s) if (is.null(s$a)) "none" else s$a
+
+"[.mybox" <- function(x, i) unclass(x)[i]
+
+`%+%` <- function(a, b) paste0(a, b)
+
+ones <- function(...) array(1, dim = c(...))

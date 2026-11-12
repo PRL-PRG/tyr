@@ -250,12 +250,26 @@ let rec best accepted ((_, a) as chosen) =
   | Some c -> best accepted c
   | None -> chosen
 
-(* Whether a rejection is the error inference reported: same title, same
-   first line of description (the witness below may differ). *)
+(* Whether a rejection is the error inference reported: the same title, and
+   either the same first line of description (the witness below may differ)
+   or, at the same place of the definition, the same failing call. The
+   argument's type may differ while the failure is the same: in
+   [ones <- function(...) array(1, dim = c(...))], inference gives
+   [dim: null] and a signature [...: dbl] gives [dim: dbl | null], both
+   failing on [array(1, dim = NULL)]. *)
 let same_error (u : Report.untypeable) = function
   | Some (i : Report.untypeable) ->
-    let first d = Option.map (fun d -> List.hd (String.split_on_char '\n' d)) d in
-    u.title = i.title && first u.descr = first i.descr
+    let lines d = Option.fold ~none:[] ~some:(String.split_on_char '\n') d in
+    let first d = List.nth_opt (lines d) 0 in
+    let failing_call d =
+      List.find_opt (String.starts_with ~prefix:"failing call:") (lines d) in
+    let same_place = match u.loc, i.loc with
+      | Some a, Some b -> a = b
+      | _ -> true in
+    u.title = i.title
+    && (first u.descr = first i.descr
+        || (same_place && failing_call u.descr <> None
+            && failing_call u.descr = failing_call i.descr))
   | None -> false
 
 (* The answer to one check, whether it is an error, the accepted signature it

@@ -103,14 +103,20 @@ let cases = [
   1, [ Some (reply [ "(x: vec | null) -> CHR" ; "(x: CHR | null) -> CHR" ]) ] ;
   "double_it", "a signature claimed but never checked", false,
   4, [ Some (reply ~text:"DONE: (x: dbl) -> dbl" []) ] ;
+  "ones", "inference's error with another argument type, the same failing call: \
+           the conversation ends", true,
+  4, [ Some (reply [ "(...: dbl) -> dbl" ; "(...: int) -> dbl" ]) ] ;
 ]
 
-(* Inference's error: with [real], [wrong]'s own, so that its rejections are
-   noted as the same; a stand-in otherwise. *)
+(* Inference's error: with [real], the definition's own ([wrong]'s, [ones']),
+   so that its rejections are noted as the same; a stand-in otherwise. *)
 let input ?(real = false) ~name ~source () = {
   F.name ; file = "signatures.R" ; source ;
   failure = F.Untypeable (
-      if real then
+      if real && name = "ones" then
+        { title = "untypeable application of base::array" ; loc = None ;
+          descr = Some "argument: @(1.<>, dim: null)\nfailing call: base::array(1, dim = NULL)" }
+      else if real then
         { title = "untypeable application of base::toupper" ; loc = None ;
           descr = Some "argument: @(list<>)\nfailing call: base::toupper(list())" }
       else { title = "unbound variable" ; loc = None ; descr = Some ("name: " ^ name) }) ;
