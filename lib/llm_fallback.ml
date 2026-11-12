@@ -85,6 +85,15 @@ type input = {
   examples : (string * string) list ;   (** source, type *)
 }
 
+(* The callees whose result is [any] in one of their arrows, often because
+   their type comes from names the checker does not know (in gradual mode,
+   a dynamic result becomes [any] once the callee is typed). A call that needs
+   a narrower value than such a result fails whatever the caller's signature. *)
+let any_callees (i : input) =
+  List.filter_map (fun (n, t) -> if Report.any_result t then Some n else None) i.callees
+
+let code_list ns = String.concat ", " (List.map (Printf.sprintf "`%s`") ns)
+
 let replace what by s = Str.global_replace (Str.regexp_string what) (String.trim by) s
 
 let system_prompt cfg =
@@ -119,7 +128,14 @@ let user_prompt cfg (i : input) =
     | Callees ->
       if i.callees <> [] then begin
         add "\n## The types of the names it uses\n\n" ;
-        List.iter (fun (n, t) -> add "- `%s`: `%s`\n" n t) i.callees
+        List.iter (fun (n, t) -> add "- `%s`: `%s`\n" n t) i.callees ;
+        (match any_callees i with
+         | [] -> ()
+         | ns ->
+           add "\n%s return%s `any`: the result may be anything, an environment \
+                included. A call that needs a narrower value from it fails whatever \
+                this function's signature, and no signature can fix that.\n"
+             (code_list ns) (if List.length ns = 1 then "s" else ""))
       end
     | Docs ->
       Option.iter (fun (f, t) -> add "\n## Its documentation (%s)\n\n```\n%s\n```\n" f (String.trim t))
@@ -245,7 +261,24 @@ let same_error (u : Report.untypeable) = function
 (* The answer to one check, whether it is an error, the accepted signature it
    yields if any, and whether it is a rejection with inference's error
    ([inference], if it reported one). *)
-let answer ~check ?inference ?(previous = []) signature =
+(* The parameters and record fields of a printed signature whose whole type
+   is [null] (not optional, not in a union): [pinned_null], or a single value
+   ([ff], [tt], a string): [pinned_value]. A signature is easily accepted by
+   pinning a parameter to [NULL] so that the code that fails is never
+   reached: it then says nothing about what callers pass. *)
+let pinned re printed =
+  let re = Str.regexp ("\\([A-Za-z._][A-Za-z0-9._]*\\): " ^ re ^ " ?[,)}]") in
+  let rec go pos acc =
+    match Str.search_forward re printed pos with
+    | exception Not_found -> List.rev acc
+    | _ ->
+      let n = Str.matched_group 1 printed in
+      go (Str.match_end () - 1) (if List.mem n acc then acc else n :: acc) in
+  go 0 []
+let pinned_null = pinned "null\\(<>\\)?"
+let pinned_value = pinned "\\(ff\\|tt\\|\"[^\"]*\"\\)\\(<>\\)?"
+
+let answer ~check ?inference ?(previous = []) ?(any_callees = []) signature =
   let plain (content, is_error, ok) = content, is_error, ok, false in
   match check signature with
   | Signature_check.Accepted a when trivial a ->
@@ -255,9 +288,19 @@ let answer ~check ?inference ?(previous = []) signature =
     plain ("rejected: no call can match this signature (a parameter of type `empty` \
             accepts no argument), so it says nothing. Give the types of the arguments \
             the function is called with.", true, None)
+  | Signature_check.Accepted a when pinned_null a.printed <> [] ->
+    plain (Printf.sprintf
+             "rejected: too narrow: %s may only be `NULL`. Accepted that way, a signature \
+              hides the failure rather than typing the function: callers pass other \
+              values. Give the types of what they pass; if that is rejected, give up \
+              and say why." (code_list (pinned_null a.printed)), true, None)
   | Signature_check.Accepted a ->
     let notes =
-      (if a.any_args = [] then []
+      (match pinned_value a.printed with
+       | [] -> []
+       | ns -> [ Printf.sprintf "note: %s may only be one value. If callers pass other values, \
+                                 this signature is too narrow." (code_list ns) ])
+      @ (if a.any_args = [] then []
        else [ "note: typed `any`: " ^ String.concat ", " a.any_args ])
       @ (if a.any_result then
            [ "note: the result is `any`: this says nothing about what the function \
@@ -276,11 +319,24 @@ let answer ~check ?inference ?(previous = []) signature =
   | Signature_check.Invalid m -> plain ("invalid signature: " ^ m, true, None)
   | Signature_check.Rejected u ->
     let same = same_error u inference in
+    let any_argument = match u.descr with
+      | Some d -> String.split_on_char '\n' d |> List.exists (fun l ->
+          String.starts_with ~prefix:"argument" l
+          && (try ignore (Str.search_forward (Str.regexp "\\bany\\b") l 0) ; true
+              with Not_found -> false))
+      | None -> false in
     let note =
-      if same then
+      (if same then
         [ "note: this is the error inference reported. It does not depend on the \
            signature: the failure is in the body, or in a function it calls." ]
-      else [] in
+       else [])
+      @ (if any_argument && any_callees <> [] then
+           [ Printf.sprintf "note: the argument may be anything (`any`). %s return%s `any`: if \
+                             the argument comes from %s, no signature of this function fixes \
+                             this call." (code_list any_callees)
+               (if List.length any_callees = 1 then "s" else "")
+               (if List.length any_callees = 1 then "it" else "one of them") ]
+         else []) in
     String.concat "\n" ((("rejected: " ^ u.title) :: Option.to_list u.descr) @ note), true, None,
     same
   | Signature_check.Timeout s -> plain (Printf.sprintf "checking took longer than %g s" s, true, None)
@@ -379,7 +435,8 @@ let run cfg ~complete ~check (i : input) =
           let content, is_error, signature, same = match c.name, signature with
             | "check_type", Some s ->
               incr checks ;
-              let content, is_error, ok, same = answer ~check ?inference ~previous:!accepted s in
+              let content, is_error, ok, same = answer ~check ?inference ~previous:!accepted
+                  ~any_callees:(any_callees i) s in
               Option.iter (fun a -> accepted := a :: !accepted) ok ;
               content, is_error, Some s, same
             | "check_type", None -> "missing argument: signature", true, None, false

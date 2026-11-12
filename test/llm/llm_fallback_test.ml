@@ -70,6 +70,17 @@ let cases = [
   "count_na", "a signature no call can match (an empty parameter) is refused", false,
   4, [ Some (reply [ "(v: empty) -> empty" ]) ; Some (reply [ "(v: any) -> INT1" ]) ;
        Some (reply ~text:"DONE: (v: any) -> INT1" []) ] ;
+  "name_or", "a parameter pinned to NULL is refused as too narrow", false,
+  4, [ Some (reply [ "(x: null) -> CHR1" ]) ; Some (reply [ "(x: vec | null) -> CHR" ]) ;
+       Some (reply ~text:"DONE: (x: vec | null) -> CHR" []) ] ;
+  "field_or", "a record field pinned to NULL is refused as too narrow", false,
+  4, [ Some (reply [ "(s: { a: null }) -> CHR1" ]) ;
+       Some (reply ~text:"GIVE UP: s$a is given other values." []) ] ;
+  "pick", "a parameter pinned to one value is noted", false,
+  4, [ Some (reply [ "(flag: tt, a: dbl, b: any) -> dbl" ]) ;
+       Some (reply ~text:"DONE: (flag: tt, a: dbl, b: any) -> dbl" []) ] ;
+  "double_it", "a rejection on an `any` argument, while a callee returns `any`, is noted", false,
+  4, [ Some (reply [ "(x: any) -> dbl" ]) ; Some (reply ~text:"GIVE UP: x may be anything." []) ] ;
   "count_na", "the turn limit with a signature accepted: no question asked", false,
   1, [ Some (reply [ "(v: any) -> INT1" ]) ] ;
   "double_it", "the model runs out of output tokens", false,
@@ -85,11 +96,11 @@ let cases = [
        Some (reply ~text:"DONE: (x: dbl, by: dbl?, ...: any) -> any" []) ] ;
   "name_or", "two accepted, neither including the other: noted; the better union is kept, \
               though DONE names another", false,
-  4, [ Some (reply [ "(x: null) -> CHR" ; "(x: vec) -> CHR" ]) ;
+  4, [ Some (reply [ "(x: CHR | null) -> CHR" ; "(x: dbl | null) -> CHR" ]) ;
        Some (reply [ "(x: vec | null) -> CHR" ]) ;
-       Some (reply ~text:"DONE: (x: null) -> CHR" []) ] ;
+       Some (reply ~text:"DONE: (x: CHR | null) -> CHR" []) ] ;
   "name_or", "out of turns: the best accepted is kept, not the last", false,
-  1, [ Some (reply [ "(x: vec | null) -> CHR" ; "(x: null) -> CHR" ]) ] ;
+  1, [ Some (reply [ "(x: vec | null) -> CHR" ; "(x: CHR | null) -> CHR" ]) ] ;
   "double_it", "a signature claimed but never checked", false,
   4, [ Some (reply ~text:"DONE: (x: dbl) -> dbl" []) ] ;
 ]
@@ -103,7 +114,7 @@ let input ?(real = false) ~name ~source () = {
         { title = "untypeable application of base::toupper" ; loc = None ;
           descr = Some "argument: @(list<>)\nfailing call: base::toupper(list())" }
       else { title = "unbound variable" ; loc = None ; descr = Some ("name: " ^ name) }) ;
-  callees = [ ("*", "((x: dbl1, y: dbl1) -> dbl1) & ...") ] ;
+  callees = [ ("*", "((x: dbl1, y: dbl1) -> dbl1) & ...") ; ("probe", "((x: any) -> any)<>") ] ;
   docs = Some ("man/fact.Rd", "\\name{fact}\n\\alias{fact}\n\\title{Factorial}") ;
   callsites = [ "use.R:3: fact(5)" ] ;
   examples = [ ("double_it <- function(x) x * 2", "(x: dbl) -> dbl") ] }

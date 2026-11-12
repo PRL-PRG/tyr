@@ -23,7 +23,9 @@ function's name.
    there. Arithmetic on `x`: `dbl`. Indexing and `paste`: `vec`. Passed
    straight to `.Call`: `DBL`.
 3. **Never narrower than what the function accepts.** Between two equally
-   good candidates, take the wider one.
+   good candidates, take the wider one. Never pin a parameter or a field to
+   `NULL` or to one value to get a signature accepted: that hides the
+   failure, it does not type the function.
 4. **Be precise about the result**: an `any` result says nothing.
 5. **`any` is a last resort**, for a parameter that is really unconstrained.
    A signature whose parameters and result are all `any` is refused.

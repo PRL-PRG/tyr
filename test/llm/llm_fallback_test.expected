@@ -25,7 +25,9 @@ function's name.
    there. Arithmetic on `x`: `dbl`. Indexing and `paste`: `vec`. Passed
    straight to `.Call`: `DBL`.
 3. **Never narrower than what the function accepts.** Between two equally
-   good candidates, take the wider one.
+   good candidates, take the wider one. Never pin a parameter or a field to
+   `NULL` or to one value to get a signature accepted: that hides the
+   failure, it does not type the function.
 4. **Be precise about the result**: an `any` result says nothing.
 5. **`any` is a last resort**, for a parameter that is really unconstrained.
    A signature whose parameters and result are all `any` is refused.
@@ -163,6 +165,9 @@ name: fact
 ## The types of the names it uses
 
 - `*`: `((x: dbl1, y: dbl1) -> dbl1) & ...`
+- `probe`: `((x: any) -> any)<>`
+
+`probe` returns `any`: the result may be anything, an environment included. A call that needs a narrower value from it fails whatever this function's signature, and no signature can fix that.
 
 ## Its documentation (man/fact.Rd)
 
@@ -251,6 +256,32 @@ turns 2, checks 1, tokens 200 in, 20 out
 typed: (v: any) -> INT1 (checked as (v: any) -> INT1)
 turns 3, checks 2, tokens 300 in, 30 out
 
+===== name_or: a parameter pinned to NULL is refused as too narrow
+  -> rejected: too narrow: `x` may only be `NULL`. Accepted that way, a signature hides the failure rather than typing the function: callers pass other values. Give the types of what they pass; if that is rejected, give up and say why.
+  -> accepted: (x: vec | null) -> CHR
+typed: (x: vec | null) -> CHR (checked as (x: vec | null) -> CHR)
+turns 3, checks 2, tokens 300 in, 30 out
+
+===== field_or: a record field pinned to NULL is refused as too narrow
+  -> rejected: too narrow: `a` may only be `NULL`. Accepted that way, a signature hides the failure rather than typing the function: callers pass other values. Give the types of what they pass; if that is rejected, give up and say why.
+gave up: s$a is given other values.
+turns 2, checks 1, tokens 200 in, 20 out
+
+===== pick: a parameter pinned to one value is noted
+  -> accepted: (flag: tt, a: dbl, b: any) -> dbl
+     note: `flag` may only be one value. If callers pass other values, this signature is too narrow.
+     note: typed `any`: b
+typed: (flag: tt, a: dbl, b: any) -> dbl (checked as (flag: tt, a: dbl, b: any) -> dbl)
+turns 2, checks 1, tokens 200 in, 20 out
+
+===== double_it: a rejection on an `any` argument, while a callee returns `any`, is noted
+  -> rejected: untypeable application of base::*
+     argument: @(any, 2.<>)
+     failing call: base::*(new.env(), 2)
+     note: the argument may be anything (`any`). `probe` returns `any`: if the argument comes from it, no signature of this function fixes this call.
+gave up: x may be anything.
+turns 2, checks 1, tokens 200 in, 20 out
+
 ===== count_na: the turn limit with a signature accepted: no question asked
 typed: (v: any) -> INT1 (checked as (v: any) -> INT1)
 turns 1, checks 1, tokens 100 in, 10 out
@@ -283,9 +314,9 @@ typed: (x: dbl, by: dbl?, ...: any) -> any (checked as (x: dbl, by: dbl?, ...: a
 turns 2, checks 2, tokens 200 in, 20 out
 
 ===== name_or: two accepted, neither including the other: noted; the better union is kept, though DONE names another
-  -> accepted: (x: null) -> CHR
-  -> accepted: (x: vec) -> CHR
-     note: neither this signature nor `(x: null) -> CHR`, accepted before, includes the other. One that accepts the arguments of both, e.g. with the union of their parameter types, may be accepted too, and is better.
+  -> accepted: (x: CHR | null) -> CHR
+  -> accepted: (x: dbl | null) -> CHR
+     note: neither this signature nor `(x: CHR | null) -> CHR`, accepted before, includes the other. One that accepts the arguments of both, e.g. with the union of their parameter types, may be accepted too, and is better.
   -> accepted: (x: vec | null) -> CHR
 typed: (x: vec | null) -> CHR (checked as (x: vec | null) -> CHR)
 turns 3, checks 3, tokens 300 in, 30 out
