@@ -1,6 +1,6 @@
 let usage =
   "tyr [--deps] [--gradual] [--debug] [--timeout SECONDS] [--prelude FILE]\n\
-  \      [--report FILE] [--fallback-c-signature] [--fallback-mode MODE]\n\
+  \      [--report FILE] [--typedecl FILE] [--fallback-c-signature] [--fallback-mode MODE]\n\
   \      [--lambda-rec SECONDS] [--log-times]\n\
   \      [--call-graph FILE]\n\
   \      [--fuzz-runner CMD [--fuzz-harness DIR] [--fuzz-samples N] [--fuzz-seed N]\n\
@@ -14,6 +14,7 @@ let timeout = ref None
 let include_dirs = ref []
 let prelude = ref []
 let report = ref None
+let typedecl = ref None
 let fallback = ref false
 let fallback_mode = ref None
 let log_times = ref false
@@ -44,6 +45,8 @@ let speclist =
      "FILE  R file of signatures to load before the package (repeatable)") ;
     ("--report", Arg.String (fun f -> report := Some f),
      "FILE  Write a machine-readable account of the run (one JSON record per line)") ;
+    ("--typedecl", Arg.String (fun f -> typedecl := Some f),
+     "FILE  Write the inferred types of the package's functions as #| signatures, for contractr") ;
     ("--fallback-c-signature", Arg.Set fallback,
      "Bind a native function that fails to type at its declared C signature") ;
     ("--fallback-mode", Arg.Symbol ([ "all" ; "except-all-sexp" ; "none" ], fun m -> fallback_mode := Some m),
@@ -101,4 +104,4 @@ let () =
     Tyr.Pipeline.run
       { native ; prelude = !prelude ; include_dirs = !include_dirs ;
         timeout = !timeout ; gradual = !gradual ; deps_only = !deps_only ;
-        report = !report ; fuzz ; fallback_mode } root
+        report = !report ; typedecl = !typedecl ; fuzz ; fallback_mode } root

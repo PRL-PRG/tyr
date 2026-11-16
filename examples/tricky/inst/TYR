@@ -1,0 +1,57 @@
+# tyr: inferred types of tricky, for contractr::insert_tyr_contract
+#| tricky::scale2 : (x: dbl) -> DBL | INT
+#| tricky::scale2 : (x: dbl1) -> DBL1
+#| tricky::describe : (x: CHR1) -> INT1<>
+#| tricky::describe : (x: ~CHR) -> INT1<>
+#| tricky::describe : (x: CHR) -> INT<>
+#| tricky::fmt : (x: CHR1, digits: any) -> CHR1<>
+#| tricky::fmt : (x: CHR, digits: any) -> CHR<>
+#| tricky::fmt : (x: dbl1, digits: dbl1) -> dbl1
+#| tricky::fmt : (x: dbl, digits: dbl1) -> dbl
+#| tricky::lookup : (key: vec1) -> ("two" | 1L)<> with {  } | null
+#| tricky::either : (x: 'b & null, y: 'a) -> 'a
+#| tricky::either : (x: 'b \ null, y: 'a) -> 'b \ null
+#| tricky::combine : (x: v('a)<`a>, y: v('a) | null) -> v('a)<`a>
+#| tricky::combine : (x: v('a) | null, y: v('a) | null) -> null | v('a)
+#| tricky::combine : (x: { 'a }, y: { 'a } | null) -> { 'a }<>
+#| tricky::combine : (x: { 'a } | null, y: { 'a } | null) -> null | { 'a }<>
+#| tricky::largest : (x: int) -> INT1
+#| tricky::largest : (x: dbl) -> dbl1
+#| tricky::nchars : (xs: vec) -> INT<>
+#| tricky::nchars : (xs: { vec1 }) -> INT<>
+#| tricky::nchars : (xs: {  }) -> empty
+#| tricky::nchars : (xs: { vec }) -> any
+#| tricky::add : (x: 'a & (dbl & v('b)), y: dbl & v('b)) -> ((DBL | INT) & v('b) | INT) | (INT | dbl & v('b)) & 'a
+#| tricky::add : (x: 'a & dbl1, y: dbl1) -> dbl1
+#| tricky::add : (x: 'a & DBL1, y: dbl1) -> DBL1
+#| tricky::add : (x: 'a & (dbl1 & v1('b)), y: DBL1 & v1('b)) -> DBL1 & v1('b) | (dbl1 & v1('b)) & 'a
+#| tricky::add : (x: 'a & dbl1, y: DBL1) -> DBL1 | dbl1 & 'a
+#| tricky::pick : (flag: tt, a: 'b, b: 'a) -> 'b
+#| tricky::pick : (flag: ff, a: 'b, b: 'a) -> 'a
+#| tricky::pick : (flag: any, a: 'b, b: 'a) -> 'a | 'b
+#| tricky::make_counter : (start: INT | dbl & v('a)) -> ((by: (INT | dbl & v('a))?) -> INT | (DBL | INT) & v('a))<> with {  }
+#| tricky::make_counter : (start: dbl1) -> ((by: dbl1?) -> dbl1)<> with {  }
+#| tricky::make_counter : (start: DBL1) -> ((by: dbl1?) -> DBL1)<> with {  }
+#| tricky::make_getter : (x: 'a) -> (() -> 'a)<> with {  }
+#| tricky::use_getter : (g: @() -> INT | dbl & v('a)) -> INT | (DBL | INT) & v('a)
+#| tricky::use_getter : (g: @() -> dbl1) -> dbl1
+#| tricky::use_getter : (g: @() -> DBL1) -> DBL1
+#| tricky::use_getter : (g: @() -> empty) -> empty
+#| tricky::capture : (x: any) -> env
+#| tricky::try_value : (x: any, default: any) -> any
+#| tricky::retry : (x: 'a) -> 'a
+#| tricky::first_dot : (...: 'a) -> @(...: 'a)
+#| tricky::log_twice : (x: any) -> 0L<> with {  }
+#| tricky::label_of : (x: any) -> CHR<>
+#| tricky::shout : (s: vec1) -> CHR1<>
+#| tricky::shout : (s: vec) -> CHR<>
+#| tricky::greet : (name: vec) -> CHR<>
+#| tricky::greet : (name: vec1) -> CHR1<>
+#| tricky::shout_all : (xs: { vec1 }) -> CHR<>
+#| tricky::shout_all : (xs: vec) -> CHR<>
+#| tricky::area : (shape: any) -> any
+#| tricky::area.square : (shape: { side: dbl & v('a), any }) -> (DBL | INT) & v('a) | INT
+#| tricky::area.square : (shape: { side: dbl1, any }) -> dbl1
+#| tricky::area.square : (shape: { side: DBL1, any }) -> DBL1
+#| tricky::area.circle : (shape: { r: dbl, any }) -> DBL | INT
+#| tricky::area.circle : (shape: { r: dbl1, any }) -> DBL1

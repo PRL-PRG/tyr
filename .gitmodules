@@ -10,3 +10,7 @@
 	path = nativesem
 	url = https://github.com/programLyrique/nativesem
 	branch = main
+[submodule "contractr"]
+	path = contractr
+	url = https://github.com/PRL-PRG/contractr
+	branch = tyr

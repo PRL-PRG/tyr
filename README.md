@@ -30,6 +30,7 @@ tyr is composed of several components:
 | [Rsem](https://github.com/E-Sh4rk/Rsem) | Gradual type-checker for R functions. | Tested on the R code of 15 CRAN packages |
 | [NativeSem](https://github.com/programLyrique/nativesem) | Type inference for library functions in C (support for Fortran is planned). | Tested on the C code of 9 CRAN packages |
 | [RSTT](https://github.com/E-Sh4rk/rstt) | Set-theoretic type algebra for the R language. Defines the type parser and printer, and the operations on types (e.g. subtyping, substitution, constraint solving). | The main R data-structures are supported (atomic vectors, lists, functions, attributes and classes, etc.) |
+| [contractr](https://github.com/PRL-PRG/contractr) (`tyr` branch) | Run-time contracts. Checks each call of an R package against the types that tyr infers. | Overloaded, polymorphic and union-domain function types |
 
 Other external dependencies:
 
@@ -117,6 +118,58 @@ function by function. A function that runs out of time is
 reported and left untyped -- the ones that use it then report an unbound
 variable -- and the rest of the package is checked normally. Without it, one
 pathological function can hold up a whole package indefinitely.
+
+## Run-time checks of the inferred types
+
+`--typedecl FILE` writes the inferred types of the package functions to `FILE`
+as `#|` signatures, one line for each overload. The
+[contractr](https://github.com/PRL-PRG/contractr) package (the `contractr`
+submodule) checks the calls of the package against these types at run time.
+If the file is `inst/TYR` of the package, contractr adds the checks when R
+loads the package. contractr sends its subtyping queries to the rstt REPL of
+this build through the processx package. Install processx before you use
+contractr.
+
+tyr writes the `inst/TYR` file of `examples/tricky` with this command:
+
+```bash
+dune exec tyr -- --timeout 60 --prelude _build/default/prelude/base.R \
+  --prelude examples/tricky/prelude.R --typedecl examples/tricky/inst/TYR examples/tricky
+```
+
+```
+$ export CONTRACTR_RSTT=$PWD/_build/install/default/bin/rstt
+$ make -C contractr install
+$ R CMD INSTALL examples/tricky
+$ R
+> options(contractr.verbose = 1); library(contractr); library(tricky)
+contractr: tricky: instrumented 25 function(s)
+...
+contractr: tricky::scale2 : ((x: dbl) -> DBL | INT) & ((x: dbl1) -> DBL1)
+...
+> scale2(1:3)
+contractr: call 0: tricky::scale2
+contractr:   arguments @(x: (INT \ INT1)<> with {  })
+contractr:   domain ok
+contractr:   result (DBL \ DBL1)<> with {  }: ok
+[1] 2 4 6
+> scale2("a")
+Error in x * 2 : non-numeric argument to binary operator
+contractr: call 1: tricky::scale2
+contractr:   arguments @(x: ^CHR1<> with {  })
+contractr:   domain violation
+contractr:   no result: the call did not return
+Warning message:
+contract violation: call of 'tricky::scale2' is outside its domain
+   ├── call site: ?
+   ├── arguments: @(x: ^CHR1<> with {  })
+   ├── domain: (x: dbl) | (x: dbl1)
+   └── blame: caller
+```
+
+`contractr::get_contracts()` gives all the verdicts. `examples/tricky/test.R`
+runs more cases. tyr does not write gradual types (`--gradual` with `dyn`) yet.
+The file lists them as `# skipped` comments.
 
 ## How the pipeline works
 
