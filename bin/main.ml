@@ -1,5 +1,5 @@
 let usage =
-  "tyr [--deps] [--gradual] [--debug] [--timeout SECONDS] [--prelude FILE]\n\
+  "tyr [--deps] [--gradual] [--debug] [--timeout SECONDS] [--prelude FILE] [--typeshed DIR]\n\
   \      [--report FILE] [--fallback-c-signature] [--fallback-mode MODE]\n\
   \      [--lambda-rec SECONDS] [--log-times]\n\
   \      [--call-graph FILE]\n\
@@ -16,6 +16,7 @@ let debug = ref false
 let timeout = ref None
 let include_dirs = ref []
 let prelude = ref []
+let typeshed = ref (Sys.getenv_opt "TYR_TYPESHED")
 let report = ref None
 let fallback = ref false
 let fallback_mode = ref None
@@ -54,6 +55,8 @@ let speclist =
      "SECONDS  Give up on a function whose type-checking takes longer") ;
     ("-I", Arg.String (fun d -> include_dirs := !include_dirs @ [d]),
      "DIR  Additional directory to search for C headers") ;
+    ("--typeshed", Arg.String (fun d -> typeshed := Some d),
+     "DIR  A checkout of r-typeshed: load the signatures of the imported packages") ;
     ("--prelude", Arg.String (fun f -> prelude := !prelude @ [f]),
      "FILE  R file of signatures to load before the package (repeatable)") ;
     ("--report", Arg.String (fun f -> report := Some f),
@@ -161,6 +164,6 @@ let () =
             transcript = Option.map open_out !llm_transcript })
       with Failure m | Sys_error m -> Printf.eprintf "tyr: --llm: %s\n" m ; exit 2 in
     Tyr.Pipeline.run
-      { native ; prelude = !prelude ; include_dirs = !include_dirs ;
+      { native ; prelude = !prelude ; typeshed = !typeshed ; include_dirs = !include_dirs ;
         timeout = !timeout ; gradual = !gradual ; deps_only = !deps_only ;
         report = !report ; fuzz ; fallback_mode ; llm } root

@@ -17,6 +17,9 @@ type options = {
   (* R files holding the signatures of the functions the package builds upon
      (base R, and the packages it imports). Processed before the package. *)
   prelude : string list ;
+  (* A checkout of r-typeshed: the signatures of the packages the package
+     imports (or reaches qualified) are loaded after [prelude]. *)
+  typeshed : string option ;
   (* Extra directories to search for C headers. *)
   include_dirs : string list ;
   (* Wall-clock limit on type-checking a single function. Applies to both
@@ -49,7 +52,7 @@ let default_native_options : R_c_typing.Runner.cmd_options = {
 }
 
 let default_options =
-  { native = default_native_options ; prelude = [] ; include_dirs = [] ;
+  { native = default_native_options ; prelude = [] ; typeshed = None ; include_dirs = [] ;
     timeout = None ; gradual = false ; deps_only = false ; report = None ; fuzz = None ;
     fallback_mode = R_c_typing.Runner.All ; llm = None }
 
@@ -978,6 +981,9 @@ let run opts root =
   let started = Unix.gettimeofday () in
   let body () =
     let pkg = Pkg.scan root in
+    let typeshed = match opts.typeshed with
+      | None -> [] | Some dir -> Pkg.typeshed_files dir pkg in
+    let prelude = opts.prelude @ List.map (fun (_, f, _) -> f) typeshed in
     (* Provenance comes from the image (see the Dockerfile): absent locally. *)
     let prov k = opt_s (Sys.getenv_opt k) in
     emit rep "run"
@@ -985,7 +991,10 @@ let run opts root =
         ("mode", R.S (if opts.gradual then "gradual" else "strict")) ;
         ("gradual", R.B opts.gradual) ;
         ("timeout", (match opts.timeout with Some t -> R.F t | None -> R.N)) ;
-        ("prelude", R.L opts.prelude) ;
+        ("prelude", R.L prelude) ;
+        ("typeshed", R.L (typeshed |> List.map (fun (p, _, v) ->
+             match v with Some v -> p ^ " " ^ v | None -> p))) ;
+        ("imports", R.L (Pkg.imported_packages pkg)) ;
         ("fallback_c_signature", R.B opts.native.fallback_c_signature) ;
         ("fallback_mode", R.S (if not opts.native.fallback_c_signature then "none"
                                else match opts.fallback_mode with
@@ -1031,7 +1040,7 @@ let run opts root =
          be declared before a type mentions it, and the [.ty] files and the
          native code can: so before the native phase, and before the [.ty]
          files are loaded. *)
-      let prelude_files = List.filter_map (parse_r rep "prelude") opts.prelude in
+      let prelude_files = List.filter_map (parse_r rep "prelude") prelude in
       let ctx =
         List.fold_left (fun ctx f -> Driver.declare_overloads ctx (f.prog, f.extras))
           Driver.initial_ctx (prelude_files @ files) in
@@ -1054,6 +1063,14 @@ let run opts root =
             process_r_file ?timeout:opts.timeout rep ~role:"prelude" ~defined ~native_syms ctx f)
             ctx prelude_files
         in
+        (* The package's imports, once the signatures of the packages it
+           imports are declared (in the preludes), and before its own code:
+           [MetaEnv.ns_import] takes a snapshot of each namespace. *)
+        let tenv = List.fold_left (fun tenv -> function
+            | Pkg.Import (p, except) -> MetaEnv.ns_import ~except p tenv
+            | Pkg.ImportFrom (p, names) -> MetaEnv.ns_import ~names p tenv)
+            ctx.Driver.tenv pkg.imports in
+        let ctx = { ctx with Driver.tenv = tenv } in
         (* Bind each native symbol under its R-visible name, with its C type
            adapted to an R calling convention. A routine called through [.C]
            or [.Fortran] is bound to helpers instead, one per parameter (cf.
