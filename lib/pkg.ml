@@ -152,7 +152,22 @@ let typeshed_version dir =
            Some (String.trim (String.sub l (i+1) (String.length l - i - 1)))
          | _ -> None)
 
+(* The name of the package: the [Package] field of its DESCRIPTION, or the name
+   of its directory. *)
+let package_name path =
+  let f = Filename.concat path "DESCRIPTION" in
+  let from_description =
+    if not (Sys.file_exists f) then None
+    else In_channel.with_open_text f In_channel.input_lines
+         |> List.find_map (fun l ->
+           match String.index_opt l ':' with
+           | Some i when String.sub l 0 i = "Package" ->
+             Some (String.trim (String.sub l (i+1) (String.length l - i - 1)))
+           | _ -> None) in
+  Option.value from_description ~default:(Filename.basename path)
+
 type t = {
+  name : string ;
   root : string ;
   r_files : string list ;
   c_files : string list ;
@@ -168,7 +183,7 @@ let imported_packages pkg =
    [pkg] imports or reaches qualified, other than itself: (package, file,
    version), for the packages that have one. *)
 let typeshed_files dir pkg =
-  let self = Filename.basename pkg.root in
+  let self = pkg.name in
   imported_packages pkg @ qualified_packages pkg.r_files
   |> List.sort_uniq String.compare
   |> List.filter (fun p -> p <> self)
@@ -206,7 +221,7 @@ let registered_arg_types pkg c_name =
 let scan root =
   if not (Sys.file_exists root && Sys.is_directory root) then
     failwith (Printf.sprintf "Not a package directory: %s" root) ;
-  { root ; r_files = get_r_files root ; c_files = get_c_files root ;
+  { name = package_name root ; root ; r_files = get_r_files root ; c_files = get_c_files root ;
     prefix = native_prefix root ;
     registered = R_c_typing.Package.registered_routines root ;
     imports = imports root }

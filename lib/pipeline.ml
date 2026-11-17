@@ -415,7 +415,7 @@ let unbound_callees ctx ~name ~defined (def : R_deps.def) =
    the prelude's. *)
 let default_packages = [ "stats" ; "graphics" ; "grDevices" ; "utils" ; "datasets" ; "methods" ; "base" ]
 
-let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
+let process_r_file ?timeout ?llm ?(self="") rep ~role ~defined ~native_syms ctx f =
   let module R = Report in
   let warn what name exn =
     Format.printf "tyr: skipping %s %s (%s)@.@." what name (Printexc.to_string exn) in
@@ -529,7 +529,7 @@ let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
       | Some n when StrSet.mem n native_syms -> Some "native", None
       | Some n ->
         match qualified n with
-        | Some (_, name) when StrSet.mem name defined -> Some "package", None
+        | Some (p, name) when p = self || StrSet.mem name defined -> Some "package", None
         | Some (p, _) when not (List.mem p default_packages) -> Some "import", Some p
         | _ -> Some "prelude", None
     in
@@ -1088,6 +1088,8 @@ let run opts root =
             | Pkg.Import (p, except) -> MetaEnv.ns_import ~except p tenv
             | Pkg.ImportFrom (p, names) -> MetaEnv.ns_import ~names p tenv)
             ctx.Driver.tenv pkg.imports in
+        (* Its own [pkg::name] calls reach its definitions. *)
+        let tenv = MetaEnv.set_self pkg.name tenv in
         let ctx = { ctx with Driver.tenv = tenv } in
         (* Bind each native symbol under its R-visible name, with its C type
            adapted to an R calling convention. A routine called through [.C]
@@ -1173,7 +1175,7 @@ let run opts root =
             { llm ; root ; r_files = List.map (fun (f : r_file) -> f.path) files }) in
         List.fold_left (fun ctx f ->
           Format.printf "@.@{<bold>===== %s =====@}@." f.path ;
-          process_r_file ?timeout:opts.timeout ?llm rep ~role:"package" ~defined ~native_syms ctx
+          process_r_file ?timeout:opts.timeout ?llm ~self:pkg.name rep ~role:"package" ~defined ~native_syms ctx
             { f with prog = Link.rewrite_native_calls ~dotcode known f.prog })
           ctx files
         |> ignore ;
