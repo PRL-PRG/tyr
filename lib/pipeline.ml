@@ -411,6 +411,10 @@ let unbound_callees ctx ~name ~defined (def : R_deps.def) =
    whether the definition was untypeable, with the checker's error, and
    [Driver.find] whether its name ended up typed. [role] tells the prelude
    from the package; [defined] and [native_syms] classify an unbound name. *)
+(* The packages R attaches by default (cf. [MetaEnv.search]): their names are
+   the prelude's. *)
+let default_packages = [ "stats" ; "graphics" ; "grDevices" ; "utils" ; "datasets" ; "methods" ; "base" ]
+
 let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
   let module R = Report in
   let warn what name exn =
@@ -509,12 +513,25 @@ let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
                | None -> ctx', "unknown", None, None, None)))
     in
     let error_name = Option.bind err R.unbound_name in
-    let unbound_kind =
+    (* An unbound [pkg::name] (a qualified call, or a name imported by name
+       without a signature) is the business of r-typeshed ("import"), unless
+       [pkg] is one of the packages R attaches by default, whose signatures
+       are the prelude's. *)
+    let qualified n = match String.index_opt n ':' with
+      | Some i when i + 1 < String.length n && n.[i+1] = ':' ->
+        let j = if i + 2 < String.length n && n.[i+2] = ':' then i + 3 else i + 2 in
+        Some (String.sub n 0 i, String.sub n j (String.length n - j))
+      | _ -> None in
+    let unbound_kind, unbound_package =
       match error_name with
-      | None -> None
-      | Some n when StrSet.mem n defined -> Some "package"
-      | Some n when StrSet.mem n native_syms -> Some "native"
-      | Some _ -> Some "prelude"
+      | None -> None, None
+      | Some n when StrSet.mem n defined -> Some "package", None
+      | Some n when StrSet.mem n native_syms -> Some "native", None
+      | Some n ->
+        match qualified n with
+        | Some (_, name) when StrSet.mem name defined -> Some "package", None
+        | Some (p, _) when not (List.mem p default_packages) -> Some "import", Some p
+        | _ -> Some "prelude", None
     in
     (* The LLM fallback, for a package definition inference failed on: it
        timed out, or is untypeable for any reason but an unbound name other
@@ -615,6 +632,7 @@ let process_r_file ?timeout ?llm rep ~role ~defined ~native_syms ctx f =
          ("error_title", opt_s (Option.map (fun (u : R.untypeable) -> u.title) err)) ]
        @ loc_fields @
        [ ("error_name", opt_s error_name) ; ("unbound_kind", opt_s unbound_kind) ;
+         ("unbound_package", opt_s unbound_package) ;
          ("error_detail", opt_s (Option.bind err (fun (u : R.untypeable) -> u.descr))) ;
          ("elapsed_sec", R.F elapsed) ; ("n_uses", R.I (StrSet.cardinal def.uses)) ;
          ("natives", R.L (List.map (fun (n : R_deps.native_call) -> n.symbol) def.natives)) ;
