@@ -8,4 +8,4 @@
 (install
  (section share)
  (package tyr)
- (files base.R))
+ (files base.R stats.R))

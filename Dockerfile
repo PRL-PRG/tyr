@@ -146,7 +146,7 @@ COPY --from=builder /home/opam/tyr/_build/default/bin/main.exe /checker/_build/d
 # NativeSem's R-C-API signatures, found among the ancestors of the CWD; and the
 # base R prelude the R side is checked against (Rsem's signatures).
 COPY --from=builder /home/opam/tyr/nativesem/types /checker/types
-COPY --from=builder /home/opam/tyr/Rsem/sigs/base.R /checker/prelude/base.R
+COPY --from=builder /home/opam/tyr/Rsem/sigs/base.R /home/opam/tyr/Rsem/sigs/stats.R /checker/prelude/
 
 # The fuzzing harness, where --fuzz-harness looks by default: fuzz/ next to
 # the binary's bin/.
