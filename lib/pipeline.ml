@@ -1084,8 +1084,16 @@ let run opts root =
         (* The package's imports, once the signatures of the packages it
            imports are declared (in the preludes), and before its own code:
            [MetaEnv.ns_import] takes a snapshot of each namespace. *)
+        (* [import(pkg)] imports what [pkg] exports, when r-typeshed lists it:
+           its names without a signature are then unbound [pkg::name]s
+           rather than looked up in base. Otherwise, only its names with a
+           signature are known. *)
+        let exports p = Option.bind opts.typeshed (fun dir -> Pkg.typeshed_exports dir p) in
         let tenv = List.fold_left (fun tenv -> function
-            | Pkg.Import (p, except) -> MetaEnv.ns_import ~except p tenv
+            | Pkg.Import (p, except) ->
+              (match exports p with
+               | Some names -> MetaEnv.ns_import ~names ~except p tenv
+               | None -> MetaEnv.ns_import ~except p tenv)
             | Pkg.ImportFrom (p, names) -> MetaEnv.ns_import ~names p tenv)
             ctx.Driver.tenv pkg.imports in
         (* Its own [pkg::name] calls reach its definitions. *)

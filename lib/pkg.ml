@@ -166,6 +166,14 @@ let package_name path =
            | _ -> None) in
   Option.value from_description ~default:(Filename.basename path)
 
+(* The names [pkg] exports, from its EXPORTS file in r-typeshed (the checkout
+   [dir]), one per line, if it has one. *)
+let typeshed_exports dir pkg =
+  let f = Filename.concat (Filename.concat dir pkg) "EXPORTS" in
+  if not (Sys.file_exists f) then None
+  else Some (In_channel.with_open_text f In_channel.input_lines
+             |> List.map String.trim |> List.filter (( <> ) ""))
+
 type t = {
   name : string ;
   root : string ;
