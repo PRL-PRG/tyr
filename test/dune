@@ -24,13 +24,13 @@
 ; type-checked against the base R signatures of `prelude/base.R`. See
 ; ../docs/r-experiment-report.md for what each of them exercises.
 ; The prelude is Rsem's `sigs/base.R` (the one tyr installs, cf.
-; ../prelude/dune); it is copied here so that the rules below, and the
+; ../types/dune); it is copied here so that the rules below, and the
 ; `===== prelude prelude/base.R` banner in the five .expected files, are
 ; unchanged.
 (subdir
  prelude
  (copy_files
-  (files %{project_root}/Rsem/sigs/base.R)))
+  (files %{project_root}/external/Rsem/sigs/base.R)))
 
 (rule
  (alias runtest)

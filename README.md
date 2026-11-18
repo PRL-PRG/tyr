@@ -42,8 +42,8 @@ Other external dependencies:
 
 tyr drives Rsem and NativeSem as libraries, and all four projects -- tyr,
 Rsem, NativeSem and RSTT -- are built together as a single dune workspace. The
-three others are submodules, so the versions tyr is known to work with are
-pinned here:
+three others are submodules, in `external/`, so the versions tyr is known to
+work with are pinned here:
 
 ```bash
 git submodule update --init --recursive
@@ -51,7 +51,7 @@ make build
 make test
 ```
 
-`make` sources `nativesem/setup-env.sh`, which locates tree-sitter in a
+`make` sources `external/nativesem/setup-env.sh`, which locates tree-sitter in a
 checkout of [r-parser](https://github.com/E-Sh4rk/r-parser) that has been built
 (`make update && make setup && make`, then `opam pin add tree-sitter core/`).
 It is looked up at `r-parser` and then `../r-parser`; set `R_PARSER_PATH` if
@@ -68,8 +68,9 @@ dune exec tyr -- --deps path/to/package
 dune exec tyr -- path/to/package
 
 # Signatures of the functions the package builds upon (base R, imports).
-# Those of base R are Rsem's (Rsem/sigs/base.R), copied to _build/default/prelude/
-dune exec tyr -- --prelude _build/default/prelude/base.R path/to/package
+# Those of base R are Rsem's (external/Rsem/sigs/*.R), copied to
+# _build/default/types/ next to NativeSem's signatures of the R C API (*.ty)
+dune exec tyr -- --prelude _build/default/types/base.R path/to/package
 
 # Give up on any function that takes longer than 10s, and carry on
 dune exec tyr -- --timeout 10 path/to/package
