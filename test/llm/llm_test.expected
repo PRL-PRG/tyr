@@ -1,0 +1,191 @@
+
+===== Anthropic: thinking, text and two tool calls =====
+stop: tool_use, tokens: 120 in, 45 out, cache: 3000 read, 500 written
+text: "I will check two signatures."
+tool call toolu_A: check_type {"signature":"(x: dbl) -> dbl"}
+tool call toolu_B: check_type {"signature":"(x: "}
+next request:
+{
+  "model": "claude-x",
+  "max_tokens": 1024,
+  "cache_control": { "type": "ephemeral" },
+  "system": [
+    {
+      "type": "text",
+      "text": "You type R functions.",
+      "cache_control": { "type": "ephemeral" }
+    }
+  ],
+  "messages": [
+    { "role": "user", "content": "Type f." },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "Let me check.",
+          "signature": "sig=="
+        },
+        { "type": "text", "text": "I will check two signatures." },
+        {
+          "type": "tool_use",
+          "id": "toolu_A",
+          "name": "check_type",
+          "input": { "signature": "(x: dbl) -> dbl" }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_B",
+          "name": "check_type",
+          "input": { "signature": "(x: " }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_A",
+          "content": "accepted",
+          "is_error": false
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_B",
+          "content": "parse error",
+          "is_error": true
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "check_type",
+      "description": "Check a signature against the definition.",
+      "input_schema": {
+        "type": "object",
+        "properties": { "signature": { "type": "string" } },
+        "required": [ "signature" ]
+      }
+    }
+  ]
+}
+with an effort and a summary of the thinking (the fields before "messages"):
+thinking: {"type":"adaptive","display":"summarized"}
+output_config: {"effort":"high"}
+
+===== OpenAI: reasoning_content, null fields, arguments as a string =====
+stop: tool_use, tokens: 50 in, 30 out, cache: 150 read, 0 written
+text: ""
+tool call call_1: check_type {"signature":"(x: dbl) -> dbl"}
+tool call abc123XYZ: check_type "{not json"
+next request (max_tokens):
+{
+  "model": "glm",
+  "messages": [
+    { "role": "system", "content": "You type R functions." },
+    { "role": "user", "content": "Type f." },
+    {
+      "role": "assistant",
+      "reasoning_content": "The argument is numeric.",
+      "tool_calls": [
+        {
+          "id": "call_1",
+          "type": "function",
+          "function": {
+            "name": "check_type",
+            "arguments": "{\"signature\": \"(x: dbl) -> dbl\"}"
+          }
+        },
+        {
+          "id": "abc123XYZ",
+          "type": "function",
+          "function": { "name": "check_type", "arguments": "{not json" }
+        }
+      ]
+    },
+    { "role": "tool", "tool_call_id": "call_1", "content": "accepted" },
+    {
+      "role": "tool",
+      "tool_call_id": "abc123XYZ",
+      "content": "Error: parse error"
+    }
+  ],
+  "max_tokens": 1024,
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "check_type",
+        "description": "Check a signature against the definition.",
+        "parameters": {
+          "type": "object",
+          "properties": { "signature": { "type": "string" } },
+          "required": [ "signature" ]
+        }
+      }
+    }
+  ],
+  "temperature": 0.0,
+  "seed": 7
+}
+the token limit, OpenAI's own:
+max_completion_tokens
+Mistral's fields (it rejects seed, and temperature 0 unless top_p is 1):
+temperature: 0.0
+top_p: 1.0
+prompt_cache_key: "tyr-llm-fallback"
+random_seed: 7
+the reasoning effort:
+"low"
+
+===== OpenAI: content as parts, finish_reason stop with a tool call =====
+stop: end_turn, tokens: 0 in, 0 out, cache: 0 read, 0 written
+text: "Done."
+tool call x: check_type {"signature":"() -> null"}
+
+===== OpenAI: the end, no usage =====
+stop: max_tokens, tokens: 0 in, 0 out, cache: 0 read, 0 written
+text: "I give up: "
+
+===== Replies of the wrong shape =====
+openai, no choice: Bad_response (no choice)
+openai, no choices field: Bad_response (Expected array, got null)
+anthropic, no content: Bad_response (Expected array, got null)
+
+===== Error messages =====
+Overloaded
+Invalid model: foo
+rate limited
+<html><body>502 Bad Gateway</body></html>
+
+===== Retry-After =====
+"Retry-After: 12\r\n": 12.
+"retry-after:3.5": 3.5
+"Retry-After: Wed, 21 Oct 2026 07:28:00 GMT": -
+"content-type: application/json": -
+
+===== Provider specs =====
+einfra:glm-5.3: einfra, https://llm.ai.e-infra.cz/v1, model glm-5.3, openai/max_tokens/seed
+einfra:glm-5.3:high: einfra, https://llm.ai.e-infra.cz/v1, model glm-5.3:high, openai/max_tokens/seed
+mistral:mistral-large-4: mistral: MISTRAL_API_KEY is not set
+nowhere:x: unknown LLM provider nowhere (one of: anthropic, openai, einfra, mistral, meta, openrouter, local, script)
+einfra: einfra: expected provider:model
+einfra:: einfra:: no model
+local:qwen: local: TYR_LLM_BASE_URL is not set
+local:qwen: local, http://localhost:11434/v1, model qwen, openai/max_tokens/seed
+einfra:glm-5.3: einfra, http://localhost:11434/v1, model glm-5.3, openai/max_tokens/seed
+script:replies.json: script, replies.json, model replies.json, script
+script:: script:: no file
+
+===== Script =====
+reply: one
+error: script: the server is down
+error: FILE: no reply left
+
+===== Cache =====
+error: no server, no cached reply
+cache file written: false
+reply: from the cache
+another request, same file: false

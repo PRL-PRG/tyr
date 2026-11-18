@@ -53,7 +53,7 @@ NA_character_
 c("a", "b")
   : (CHR & ~vec1)<> with {  }
 as.raw(c(255))
-  : ^raw1<> with {  }
+  : raw1<> with {  }
 as.raw(c(0, 1))
   : (raw & ~vec1)<> with {  }
 raw(0)
@@ -76,8 +76,8 @@ function(...) 1
   : arrow<> with {  }  (inexact)
 function(...) stop("fuzz: no value")
   : arrow<> with {  }  (inexact)
-new("externalptr")
-  : externalptr<> with {  }
+local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p })
+  : externalptr(empty)<> with {  }  (inexact)
 structure(1L, "levels" = "a", class = "factor")
   : 1L<factor> with { levels: "a"<> with {  } }
 structure(c(1, 2), "names" = c("a", "b"))

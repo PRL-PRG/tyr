@@ -14,15 +14,15 @@ C_make_pair: (x1: any_sexp, x2: any_sexp) -> lang
 
 
 ===== packages/smallpkg/R/z_utils.R =====
-tag: ∀'a. ((x: 'a) -> 'a)<> with {  }
+tag: ∀'a. ((x: 'a) -> 'a)<>
 
 
 ===== packages/smallpkg/R/a_main.R =====
-pair_of: ((x: any_sexp, y: any_sexp) -> lang)<> with {  }
+pair_of: ((x: any_sexp, y: any_sexp) -> lang)<>
 
-first_of: ((x: any_sexp, y: any_sexp) -> any_sexp)<> with {  }
+first_of: ((x: any_sexp, y: any_sexp) -> any_sexp)<>
 
-helper: ((x: lang) -> any_sexp)<> with {  }
+helper: ((x: lang) -> any_sexp)<>
 
-via_helper: ((x: lang) -> any_sexp)<> with {  }
+via_helper: ((x: lang) -> any_sexp)<>
 

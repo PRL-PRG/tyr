@@ -29,10 +29,17 @@ let symbol_of_arg = function
 (* Every identifier and native call occurring in [e], nested functions
    included. Over-approximating (locals are included too) is harmless here: the
    result is only used to order definitions, and a local shadowing a top-level
-   name just adds an edge that was already implied. *)
+   name just adds an edge that was already implied.
+
+   Also the functions [e] calls by name ([f(...)], or [ns::f(...)] with its
+   namespace), and the names local to it: the parameters of its functions, the
+   variables of its [for] loops, and the names it assigns with [<-], [=] or
+   [->] ([<<-] assigns a name outside). *)
 let scan_e e =
   let ids = ref StrSet.empty and natives = ref [] in
+  let calls = ref [] and locals = ref StrSet.empty in
   let add_id str = ids := StrSet.add str !ids in
+  let add_local str = locals := StrSet.add str !locals in
   let rec aux (_, e) =
     match e with
     | PAst.Id str -> add_id str
@@ -42,9 +49,17 @@ let scan_e e =
     | PAst.Const _ | PAst.Dots | PAst.DotsN _
     | PAst.Return | PAst.Break | PAst.Next -> ()
     | PAst.Unop (str, e) -> add_id str ; aux e
-    | PAst.Binop (str, (e1, e2)) -> add_id str ; aux e1 ; aux e2
+    | PAst.Binop (str, (e1, e2)) ->
+      (match str, e1, e2 with
+       | ("<-" | "="), (_, PAst.Id x), _ | "->", _, (_, PAst.Id x) -> add_local x
+       | _ -> ()) ;
+      add_id str ; aux e1 ; aux e2
     | PAst.Dollar (e, _) | PAst.At (e, _) -> aux e
     | PAst.Call (f, args) ->
+      (match f with
+       | _, PAst.Id name -> calls := (None, name) :: !calls
+       | _, PAst.Ns (ns, name) -> calls := (Some ns, name) :: !calls
+       | _ -> ()) ;
       (match f, args with
        | (_, PAst.Id name), first :: _ ->
          (match convention_of_name name, symbol_of_arg first with
@@ -56,19 +71,21 @@ let scan_e e =
     | PAst.Subset (e, args) | PAst.Subset2 (e, args) -> aux e ; aux_args args
     | PAst.Function (_, params, e) ->
       Option.iter (List.iter (function
-        | PAst.Default (_, e) -> aux e
-        | PAst.NoDefault _ -> ())) params ;
+        | PAst.Default (a, e) -> local_arg a ; aux e
+        | PAst.NoDefault a -> local_arg a)) params ;
       aux e
     | PAst.Ite (e, e1, e2) -> aux e ; aux e1 ; Option.iter aux e2
-    | PAst.While (e1, e2) | PAst.For (_, e1, e2) -> aux e1 ; aux e2
+    | PAst.For (a, e1, e2) -> local_arg a ; aux e1 ; aux e2
+    | PAst.While (e1, e2) -> aux e1 ; aux e2
     | PAst.Repeat e -> aux e
     | PAst.Braced es -> List.iter aux es
+  and local_arg = function PAst.ArgId x -> add_local x | _ -> ()
   and aux_args args =
     args |> List.iter (function
       | None | Some (PAst.Named (_, None)) -> ()
       | Some (PAst.Unnamed e) | Some (PAst.Named (_, Some e)) -> aux e)
   in
-  aux e ; !ids, List.rev !natives
+  aux e ; !ids, List.rev !natives, List.sort_uniq compare !calls, !locals
 
 (* One top-level definition, with what it needs. [name] is [None] for a
    top-level statement that binds nothing. *)
@@ -76,11 +93,13 @@ type def = {
   name : string option ;
   uses : StrSet.t ;
   natives : native_call list ;
+  calls : (string option * string) list ;  (** called by name, with the namespace *)
+  locals : StrSet.t ;                      (** cf. [scan_e] *)
 }
 
 let def_of_past past =
-  let uses, natives = scan_e past in
-  { name = Driver.toplevel_name past ; uses ; natives }
+  let uses, natives, calls, locals = scan_e past in
+  { name = Driver.toplevel_name past ; uses ; natives ; calls ; locals }
 
 let defs_of_program (prog : PAst.t) = List.map def_of_past prog
 

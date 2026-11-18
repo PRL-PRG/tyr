@@ -3,9 +3,9 @@ name: Docker
 # Two kinds of build. Every automatic build -- a push to main, a dependency
 # update (dispatched by Rsem or nativesem), the weekly schedule -- is UNPINNED:
 # every submodule is refreshed to the tip of its branch first, which is what
-# the dashboard needs to track progress in typr, Rsem, NativeSem and rstt
+# the dashboard needs to track progress in tyr, Rsem, NativeSem and rstt
 # together. Only unpinned builds tag `latest` (what r-typing runs) and notify
-# r-typing. A PINNED build, at the SHAs typr records, only happens on a manual
+# r-typing. A PINNED build, at the SHAs tyr records, only happens on a manual
 # run with `pinned`; it moves the `pinned` tag and leaves `latest` alone, so a
 # reproducible image exists without the pins having to follow every upstream
 # push. Either way the image records the four commits it was built from.
@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       pinned:
-        description: "Build the submodules at the SHAs typr pins (moves the `pinned` tag, not `latest`)"
+        description: "Build the submodules at the SHAs tyr pins (moves the `pinned` tag, not `latest`)"
         type: boolean
         default: false
   schedule:
@@ -58,7 +58,7 @@ jobs:
       - name: Resolve the four commits
         id: shas
         run: |
-          echo "typr=$(git rev-parse HEAD)"                >> "$GITHUB_OUTPUT"
+          echo "tyr=$(git rev-parse HEAD)"                >> "$GITHUB_OUTPUT"
           echo "rsem=$(git -C Rsem rev-parse HEAD)"        >> "$GITHUB_OUTPUT"
           echo "nativesem=$(git -C nativesem rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "rstt=$(git -C rstt rev-parse HEAD)"        >> "$GITHUB_OUTPUT"
@@ -78,7 +78,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/typr
+          images: ghcr.io/${{ github.repository_owner }}/tyr
           tags: |
             type=raw,value=latest,enable=${{ steps.pins.outputs.pinned == 'false' && github.ref == 'refs/heads/main' }}
             type=raw,value=pinned,enable=${{ steps.pins.outputs.pinned == 'true' && github.ref == 'refs/heads/main' }}
@@ -96,7 +96,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            TYPR_SHA=${{ steps.shas.outputs.typr }}
+            TYR_SHA=${{ steps.shas.outputs.tyr }}
             RSEM_SHA=${{ steps.shas.outputs.rsem }}
             NATIVESEM_SHA=${{ steps.shas.outputs.nativesem }}
             RSTT_SHA=${{ steps.shas.outputs.rstt }}
@@ -115,9 +115,9 @@ jobs:
         with:
           token: ${{ secrets.PIPELINE_DISPATCH_TOKEN }}
           repository: PRL-PRG/r-typing
-          event-type: typr-updated
+          event-type: tyr-updated
           client-payload: >-
-            {"typr":"${{ steps.shas.outputs.typr }}",
+            {"tyr":"${{ steps.shas.outputs.tyr }}",
              "rsem":"${{ steps.shas.outputs.rsem }}",
              "nativesem":"${{ steps.shas.outputs.nativesem }}",
              "rstt":"${{ steps.shas.outputs.rstt }}",

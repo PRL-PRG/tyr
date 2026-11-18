@@ -1,0 +1,6 @@
+; The client of the language-model APIs: no type checking here.
+
+(library
+ (name llm)
+ (libraries curl yojson unix)
+ (instrumentation (backend bisect_ppx)))

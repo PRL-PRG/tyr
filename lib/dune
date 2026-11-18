@@ -1,4 +1,25 @@
 (library
  (name tyr)
- (libraries rsem.lang rsem.r rsem.r_types r-c-typing.lib mlsem rstt yojson str unix)
+ (libraries rsem.lang rsem.r rsem.r_types r-c-typing.lib mlsem rstt llm yojson str unix)
  (instrumentation (backend bisect_ppx)))
+
+; The prompts of the LLM fallback (see Llm_fallback), embedded as strings.
+; type-system.md and annotation-guide.md are copies of r-typing-pipeline's
+; docs/, for the "full" syntax.
+
+(rule
+ (target prompts.ml)
+ (deps (glob_files prompts/*.md))
+ (action
+  (with-stdout-to
+   %{target}
+   (progn
+    (echo "let system = {prompt|")
+    (cat prompts/system.md)
+    (echo "|prompt}\n\nlet syntax_short = {prompt|")
+    (cat prompts/syntax-short.md)
+    (echo "|prompt}\n\nlet type_system = {prompt|")
+    (cat prompts/type-system.md)
+    (echo "|prompt}\n\nlet annotation_guide = {prompt|")
+    (cat prompts/annotation-guide.md)
+    (echo "|prompt}\n")))))

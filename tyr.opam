@@ -19,6 +19,7 @@ depends: [
   "rstt"
   "mlsem"
   "yojson" {>= "2.0"}
+  "curl"
   "odoc" {with-doc}
 ]
 build: [

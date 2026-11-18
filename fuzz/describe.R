@@ -1,4 +1,4 @@
-# The structural description of an R value that TypR's Valty module types
+# The structural description of an R value that tyr's Valty module types
 # (lib/valty.ml documents the format). Shared by the fuzzing harness and the
 # tests that check it against the OCaml side (lib/rval.ml).
 
@@ -16,7 +16,7 @@ fuzz_describe <- function(x) {
     symbol = list(t = "sym"),
     language = list(t = "lang"),
     pairlist = list(t = "pairlist"),
-    externalptr = list(t = "extptr"),
+    externalptr = list(t = "extptr", null = fuzz_extptr_null(x)),
     closure = list(t = "closure"),
     special = , builtin = list(t = "builtin"),
     list(t = "other", type = type))
@@ -27,10 +27,20 @@ fuzz_describe <- function(x) {
   d
 }
 
+# Whether the address of the external pointer [x] is null. identical() compares
+# external pointers by address, and attributes; [x] is compared with a fresh
+# null pointer given the same attributes. (A copy: setting the attributes of an
+# external pointer modifies it in place.)
+fuzz_extptr_null <- function(x) {
+  q <- unserialize(serialize(new("externalptr"), NULL))
+  attributes(q) <- attributes(x)
+  identical(x, q)
+}
+
 fuzz_describe_vec <- function(x, mode) {
   d <- list(t = "vec", mode = mode, len = length(x))
   if (length(x) != 1L) return(d)
-  # NaN is no NA for TypR: it is one of the non-integer doubles.
+  # NaN is no NA for tyr: it is one of the non-integer doubles.
   na <- if (mode == "raw") FALSE else is.na(x) && !is.nan(x)
   d$na <- na
   if (na) return(d)

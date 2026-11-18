@@ -25,7 +25,7 @@ type t =
   | Env
   | Sym of string
   | Lang of string                       (* R source of a call *)
-  | ExtPtr                                 (* a null external pointer *)
+  | ExtPtr                                 (* a null external pointer, with no tag *)
   | Fun of { doms : Mlsem.Types.Ty.t list ; ret : t option }
     (* [function(...) ret], typed at the domains [doms]; with no [ret], a
        function that always fails, the only kind of value of [d -> empty] *)
@@ -91,7 +91,12 @@ let rec to_r = function
   | Env -> "new.env()"
   | Sym s -> Printf.sprintf "as.name(%s)" (quote s)
   | Lang s -> Printf.sprintf "quote(%s)" s
-  | ExtPtr -> "new(\"externalptr\")"
+  (* [new("externalptr")] is the class prototype, one object: external
+     pointers are not copied when modified, so a class or attribute given to
+     one sample would show on every later one. A copy through serialization
+     is a fresh null pointer. *)
+  | ExtPtr ->
+    "local({ p <- unserialize(serialize(new(\"externalptr\"), NULL)); attributes(p) <- NULL; p })"
   | Fun { ret = Some ret ; _ } -> Printf.sprintf "function(...) %s" (to_r ret)
   | Fun { ret = None ; _ } -> "function(...) stop(\"fuzz: no value\")"
   | With { v ; cls ; attrs } ->
@@ -144,7 +149,7 @@ let rec describe v : Yojson.Safe.t =
   | Env -> `Assoc ["t", `String "env"]
   | Sym _ -> `Assoc ["t", `String "sym"]
   | Lang _ -> `Assoc ["t", `String "lang"]
-  | ExtPtr -> `Assoc ["t", `String "extptr"]
+  | ExtPtr -> `Assoc ["t", `String "extptr" ; "null", `Bool true]
   | Fun { doms = [] ; _ } -> `Assoc ["t", `String "closure"]
   | Fun { doms ; ret } ->
     let doms = List.map (fun d -> `Int (Valty.register_domain d)) doms in

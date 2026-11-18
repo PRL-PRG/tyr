@@ -26,8 +26,11 @@
     Up to [samples] calls are drawn inside the domain, and as many outside.
     Calls inside go round the arrows of the type, for each overload to be
     tried: a function with more arrows than [samples] gets one call per
-    arrow, up to [4 * samples]. The result each call must have is that of
-    all the arrows whose domain it is in ({!Gen.gen_call}).
+    arrow, up to [4 * samples]. A polymorphic function gets more calls, so
+    that its type variables go round their pools ({!Gen.instantiate}):
+    [samples] per variable, and at least the size of the pool of values, up
+    to [4 * samples] as well. The result each call must have is that of all
+    the arrows whose domain it is in ({!Gen.gen_call}).
 
     Calls are drawn from a random state seeded with the seed, the package
     and the name of the function: the samples of a function stay the same
@@ -77,16 +80,22 @@ let dedup key l =
 (* The calls for [t], inside then outside its domain, with the arrow each
    call inside was drawn from. Inside, the calls go round the arrows, so
    that each gets one before any gets two: there are as many as the arrows
-   when there are more than [samples], up to [4 * samples]. *)
+   when there are more than [samples], up to [4 * samples]. The calls to
+   one arrow go round the instances of the type variables: [samples] per
+   variable, and at least as many as the values in the pool, so that each
+   gets tried, up to [4 * samples] too. *)
 let draw opts pkg t =
   let st = Random.State.make [| opts.seed ; Hashtbl.hash pkg ; Hashtbl.hash t.name |] in
   let positional = t.symbol <> None in
   let k = List.length (Gen.arrows t.ty) in
-  let n_in = if k <= 1 then opts.samples else min (max opts.samples k) (4 * opts.samples) in
+  let nv = Gen.n_vars (Gen.content t.ty) in
+  let for_vars = if nv = 0 then 0 else max (opts.samples * nv) (List.length (Lazy.force Gen.value_pool)) in
+  let n_in = min (max opts.samples (max k for_vars)) (4 * opts.samples) in
   let ins =
     List.init n_in (fun i ->
       let arrow = if k <= 1 then None else Some (i mod k) in
-      Gen.gen_call ~positional ?arrow st t.ty |> Option.map (fun s -> s, arrow))
+      let index = i / max k 1 in
+      Gen.gen_call ~positional ?arrow ~index st t.ty |> Option.map (fun s -> s, arrow))
     |> List.filter_map Fun.id
     |> dedup (fun ((s : Gen.sample), _) -> Gen.call_to_r s.call) in
   let outs = match ins with

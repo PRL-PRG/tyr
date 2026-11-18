@@ -1,6 +1,6 @@
 (** Dependency analysis of the native side of a package.
 
-    The mirror image of {!R_deps}: TypR resolves the dependencies of both
+    The mirror image of {!R_deps}: tyr resolves the dependencies of both
     languages itself, so that functions of either are ordered -- and bounded by
     a timeout -- the same way, by the same code. *)
 

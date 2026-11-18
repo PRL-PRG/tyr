@@ -1,10 +1,13 @@
 let usage =
-  "tyr [--deps] [--gradual] [--debug] [--timeout SECONDS] [--prelude FILE]\n\
+  "tyr [--deps] [--gradual] [--debug] [--timeout SECONDS] [--prelude FILE] [--typeshed DIR]\n\
   \      [--report FILE] [--typedecl FILE] [--fallback-c-signature] [--fallback-mode MODE]\n\
   \      [--lambda-rec SECONDS] [--log-times]\n\
   \      [--call-graph FILE]\n\
   \      [--fuzz-runner CMD [--fuzz-harness DIR] [--fuzz-samples N] [--fuzz-seed N]\n\
   \       [--fuzz-dir DIR] [--fuzz-call-timeout SECONDS]]\n\
+  \      [--llm PROVIDER:MODEL [--llm-context PARTS] [--llm-syntax short|full]\n\
+  \       [--llm-max-turns N] [--llm-candidates N] [--llm-max-tokens N] [--llm-no-bind] [--llm-cache DIR]\n\
+  \       [--llm-transcript FILE] [--llm-effort LEVEL] [--llm-thinking-display MODE]]\n\
   \      [-I DIR] <package-directory>"
 
 let deps_only = ref false
@@ -13,6 +16,7 @@ let debug = ref false
 let timeout = ref None
 let include_dirs = ref []
 let prelude = ref []
+let typeshed = ref (Sys.getenv_opt "TYR_TYPESHED")
 let report = ref None
 let typedecl = ref None
 let fallback = ref false
@@ -30,6 +34,17 @@ let fuzz_samples = ref 8
 let fuzz_seed = ref 1
 let fuzz_dir = ref "fuzz-results"
 let fuzz_call_timeout = ref 5.
+let llm = ref None
+let llm_context = ref None
+let llm_syntax = ref "short"
+let llm_max_turns = ref 4
+let llm_candidates = ref 1
+let llm_max_tokens = ref 32768
+let llm_bind = ref true
+let llm_cache = ref None
+let llm_transcript = ref None
+let llm_effort = ref None
+let llm_thinking_display = ref None
 
 let speclist =
   [ ("--deps", Arg.Set deps_only,
@@ -41,6 +56,8 @@ let speclist =
      "SECONDS  Give up on a function whose type-checking takes longer") ;
     ("-I", Arg.String (fun d -> include_dirs := !include_dirs @ [d]),
      "DIR  Additional directory to search for C headers") ;
+    ("--typeshed", Arg.String (fun d -> typeshed := Some d),
+     "DIR  A checkout of r-typeshed: load the signatures of the imported packages") ;
     ("--prelude", Arg.String (fun f -> prelude := !prelude @ [f]),
      "FILE  R file of signatures to load before the package (repeatable)") ;
     ("--report", Arg.String (fun f -> report := Some f),
@@ -69,7 +86,33 @@ let speclist =
     ("--fuzz-dir", Arg.Set_string fuzz_dir,
      "DIR  Where the samples and results files go (default fuzz-results)") ;
     ("--fuzz-call-timeout", Arg.Set_float fuzz_call_timeout,
-     "SECONDS  Time limit of one call when fuzzing (default 5)") ]
+     "SECONDS  Time limit of one call when fuzzing (default 5)") ;
+    ("--llm", Arg.String (fun s -> llm := Some s),
+     "PROVIDER:MODEL  Ask this model for the R definitions inference fails on \
+      (providers: " ^ String.concat ", " Llm.Client.providers ^ ")") ;
+    ("--llm-context", Arg.String (fun s -> llm_context := Some s),
+     "PARTS  What the model gets, comma-separated, among source, error, callees, docs, \
+      callsites, examples (default source,error,callees)") ;
+    ("--llm-syntax", Arg.Symbol ([ "short" ; "full" ], fun s -> llm_syntax := s),
+     " How the type language is explained: a short reference (the default) or the full documents") ;
+    ("--llm-max-turns", Arg.Set_int llm_max_turns, "N  Turns per definition (default 4)") ;
+    ("--llm-candidates", Arg.Set_int llm_candidates,
+     "N  Ask the model to check N different signatures each turn (default: as many as it likes)") ;
+    ("--llm-max-tokens", Arg.Set_int llm_max_tokens,
+     "N  Output tokens per turn, reasoning included (default 32768)") ;
+    ("--llm-no-bind", Arg.Clear llm_bind,
+     "Do not bind the types the model finds for the definitions that follow") ;
+    ("--llm-cache", Arg.String (fun d -> llm_cache := Some d),
+     "DIR  Cache the model's replies there, and reuse them") ;
+    ("--llm-transcript", Arg.String (fun f -> llm_transcript := Some f),
+     "FILE  Write the conversations there (one JSON record per line)") ;
+    ("--llm-effort", Arg.String (fun e -> llm_effort := Some e),
+     "LEVEL  How much the model thinks (default: the model's own). Anthropic: \
+      low|medium|high|xhigh|max; other providers: their reasoning_effort \
+      (Muse Spark: minimal|low|medium|high|xhigh|max)") ;
+    ("--llm-thinking-display", Arg.Symbol ([ "summarized" ; "omitted" ],
+                                           fun d -> llm_thinking_display := Some d),
+     " Whether the transcript gets a summary of the model's thinking (Anthropic only)") ]
 
 let () =
   Printexc.record_backtrace true ;
@@ -101,7 +144,29 @@ let () =
         debug = !debug ; fallback_c_signature = fallback_on ; log_times = !log_times ;
         lambda_rec = !lambda_rec ;
         call_graph = !call_graph } in
+    let llm =
+      try
+        !llm |> Option.map (fun spec ->
+          let client = Llm.Client.of_spec spec in
+          if !llm_thinking_display <> None && client.format <> Llm.Client.Anthropic then
+            failwith "--llm-thinking-display is only for the anthropic provider" ;
+          (match !llm_effort with
+           | Some e when client.format = Llm.Client.Anthropic
+                      && not (List.mem e [ "low" ; "medium" ; "high" ; "xhigh" ; "max" ]) ->
+             failwith (e ^ ": the anthropic effort is one of low, medium, high, xhigh, max")
+           | _ -> ()) ;
+          let client = { client with effort = !llm_effort ;
+                                     thinking_display = !llm_thinking_display } in
+          { Tyr.Llm_fallback.client ;
+            context = (match !llm_context with
+              | Some s -> Tyr.Llm_fallback.parts_of_string s
+              | None -> Tyr.Llm_fallback.default_context) ;
+            syntax = (if !llm_syntax = "full" then Full else Short) ;
+            max_turns = max 1 !llm_max_turns ; candidates = !llm_candidates ; max_tokens = max 256 !llm_max_tokens ;
+            bind = !llm_bind ; cache = !llm_cache ;
+            transcript = Option.map open_out !llm_transcript })
+      with Failure m | Sys_error m -> Printf.eprintf "tyr: --llm: %s\n" m ; exit 2 in
     Tyr.Pipeline.run
-      { native ; prelude = !prelude ; include_dirs = !include_dirs ;
+      { native ; prelude = !prelude ; typeshed = !typeshed ; include_dirs = !include_dirs ;
         timeout = !timeout ; gradual = !gradual ; deps_only = !deps_only ;
-        report = !report ; typedecl = !typedecl ; fuzz ; fallback_mode } root
+        report = !report ; typedecl = !typedecl ; fuzz ; fallback_mode ; llm } root

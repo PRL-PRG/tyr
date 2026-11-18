@@ -1,4 +1,4 @@
-# The fuzzing harness: runs the calls TypR draws for the functions of a
+# The fuzzing harness: runs the calls tyr draws for the functions of a
 # package, and reports what each one does.
 #
 # Usage: Rscript harness.R DESCRIBE.R PKG SAMPLES.jsonl RESULTS.jsonl [TIMEOUT]
