@@ -166,10 +166,17 @@ let package_name path =
            | _ -> None) in
   Option.value from_description ~default:(Filename.basename path)
 
+(* The directory of [pkg] in r-typeshed (the checkout [dir]): packages/<pkg>,
+   or <pkg> in a checkout from before packages/. *)
+let typeshed_dir dir pkg =
+  let packages = Filename.concat dir "packages" in
+  if Sys.file_exists packages && Sys.is_directory packages
+  then Filename.concat packages pkg else Filename.concat dir pkg
+
 (* The names [pkg] exports, from its EXPORTS file in r-typeshed (the checkout
    [dir]), one per line, if it has one. *)
 let typeshed_exports dir pkg =
-  let f = Filename.concat (Filename.concat dir pkg) "EXPORTS" in
+  let f = Filename.concat (typeshed_dir dir pkg) "EXPORTS" in
   if not (Sys.file_exists f) then None
   else Some (In_channel.with_open_text f In_channel.input_lines
              |> List.map String.trim |> List.filter (( <> ) ""))
@@ -196,7 +203,7 @@ let typeshed_files dir pkg =
   |> List.sort_uniq String.compare
   |> List.filter (fun p -> p <> self)
   |> List.filter_map (fun p ->
-    let d = Filename.concat dir p in
+    let d = typeshed_dir dir p in
     let f = Filename.concat d (p ^ ".R") in
     if Sys.file_exists f then Some (p, f, typeshed_version d) else None)
 
