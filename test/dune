@@ -198,6 +198,19 @@
    (run %{exe:../bin/main.exe} --gradual --prelude prelude/base.R --typedecl
     %{targets} packages/rematch))))
 
+; The functions of tricky are difficult to check at run time. contractr reads
+; their types from inst/TYR, thus inst/TYR is also the expected output.
+(rule
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  prelude/base.R
+  (source_tree packages/tricky))
+ (targets tricky.typedecl.tyr)
+ (action
+  (ignore-outputs
+   (run %{exe:../bin/main.exe} --timeout 60 --prelude prelude/base.R
+    --typedecl %{targets} packages/tricky))))
+
 (rule
  (alias runtest)
  (action
@@ -215,11 +228,17 @@
 
 (rule
  (alias runtest)
+ (action
+  (diff packages/tricky/inst/TYR tricky.typedecl.tyr)))
+
+(rule
+ (alias runtest)
  (deps
   typedecl-roundtrip.sh
   smallpkg.typedecl.tyr
   praise.typedecl.tyr
-  rematch-gradual.typedecl.tyr)
+  rematch-gradual.typedecl.tyr
+  tricky.typedecl.tyr)
  (action
   (run bash typedecl-roundtrip.sh %{bin:rstt} smallpkg.typedecl.tyr
-   praise.typedecl.tyr rematch-gradual.typedecl.tyr)))
+   praise.typedecl.tyr rematch-gradual.typedecl.tyr tricky.typedecl.tyr)))

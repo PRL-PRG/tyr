@@ -150,7 +150,7 @@ $ R
 > library(tricky)
 contractr: tricky: instrumented 25 function(s)
 ...
-contractr: tricky::scale2 : ((x: dbl) -> DBL | INT) & ((x: dbl1) -> DBL1)
+contractr: tricky::scale2 : ((x: <@"*", ...>) -> (DBL | INT)<difftime> | LGL<>) & ((x: dbl1<~@"*", . | `A>) -> DBL1<~@"*", . | `A>) & ((x: dbl<~@"*", . | `B>) -> (DBL | INT)<~@"*", . | `B>)
 ...
 
 > scale2(1:3)
@@ -170,7 +170,7 @@ Warning message:
 contract violation: call of 'tricky::scale2' is outside its domain
    ├── call site: ?
    ├── arguments: @(x: ^CHR1<> with {  })
-   ├── domain: (x: dbl) | (x: dbl1)
+   ├── domain: (x: <@"*", ...>) | (x: dbl1<~@"*", . | `A>) | (x: dbl<~@"*", . | `B>)
    └── blame: caller
 ```
 
