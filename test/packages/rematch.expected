@@ -15,9 +15,11 @@ Line 46, characters 11-51
 argument: @('pattern & CHR, CHR<>, perl: tt<>, ...: ('_ell, empty? | `_ell))
 failing call: base::regexpr(NA_character_, NA_character_, perl = TRUE)
 
-re_match_all1: Untypeable: unbound variable
-Line 114, characters 11-20
-name: as.vector
+re_match_all1: (((match: dbl<~factor, ...> with { match.length: dbl<~@"-", ...>, capture.start: null, capture.length: any, capture.names: vec
+ | null, any }, text: vec) -> CHR<> with { dimnames: list?, dim: INT, any })
+ &
+ ((match: list<factor, ...> with { match.length: any, capture.start: any, capture.length: any, capture.names: any, any }, text: any)
+ -> empty))<>
 
 re_match_all: Untypeable: unbound variable
 Line 103, characters 11-19

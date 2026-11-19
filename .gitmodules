@@ -1,13 +1,13 @@
 [submodule "rstt"]
-	path = rstt
+	path = external/rstt
 	url = https://github.com/E-Sh4rk/rstt
 	branch = main
 [submodule "Rsem"]
-	path = Rsem
+	path = external/Rsem
 	url = https://github.com/E-Sh4rk/Rsem
 	branch = main
 [submodule "nativesem"]
-	path = nativesem
+	path = external/nativesem
 	url = https://github.com/programLyrique/nativesem
 	branch = main
 [submodule "contractr"]

@@ -23,7 +23,7 @@
 (subdir
  prelude
  (copy_files
-  (files %{project_root}/Rsem/sigs/base.R)))
+  (files %{project_root}/external/Rsem/sigs/base.R)))
 
 (test
  (name signature_check_test)

@@ -1,5 +1,20 @@
-; The R C API signatures live with NativeSem, but the checker looks for a
-; `types/` directory among the ancestors of the working directory. Copying them
-; here makes them reachable from the build tree (and from `dune exec tyr`).
+; The signatures tyr checks packages against, gathered in the build tree:
+;
+; - NativeSem's R C API signatures (*.ty). NativeSem looks for a `types/`
+;   directory among the ancestors of the working directory, and reads only its
+;   .ty files: here they are reachable from the build tree (and from
+;   `dune exec tyr`).
+; - Rsem's base R signatures (*.R), the prelude: pass them with --prelude
+;   (e.g. --prelude _build/default/types/base.R). They are installed too, so
+;   that the image, and anyone with `tyr` in their switch, can point --prelude
+;   at them.
 (copy_files
- (files %{project_root}/nativesem/types/*.ty))
+ (files %{project_root}/external/nativesem/types/*.ty))
+
+(copy_files
+ (files %{project_root}/external/Rsem/sigs/*.R))
+
+(install
+ (section share)
+ (package tyr)
+ (files base.R stats.R))

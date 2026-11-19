@@ -13,7 +13,7 @@ export R_PARSER_PATH ?= $(firstword \
   $(wildcard $(CURDIR)/r-parser) $(CURDIR)/../r-parser)
 
 define WITH_ENV
-	source ./nativesem/setup-env.sh && eval "$$(opam env)" && $(1)
+	source ./external/nativesem/setup-env.sh && eval "$$(opam env)" && $(1)
 endef
 
 build:

@@ -59,9 +59,9 @@ jobs:
         id: shas
         run: |
           echo "tyr=$(git rev-parse HEAD)"                >> "$GITHUB_OUTPUT"
-          echo "rsem=$(git -C Rsem rev-parse HEAD)"        >> "$GITHUB_OUTPUT"
-          echo "nativesem=$(git -C nativesem rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "rstt=$(git -C rstt rev-parse HEAD)"        >> "$GITHUB_OUTPUT"
+          echo "rsem=$(git -C external/Rsem rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "nativesem=$(git -C external/nativesem rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "rstt=$(git -C external/rstt rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
