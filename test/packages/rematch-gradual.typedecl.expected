@@ -1,5 +1,5 @@
 # tyr: inferred types of rematch, for contractr::insert_tyr_contract
-#| rematch::re_match_all1 : (match: any with { match.length: any, capture.start: null, capture.length: any, capture.names: vec | null, any }, text: any) -> any
-#| rematch::re_match_all1 : (match: any with { match.length: any, capture.start: dbl, capture.length: dbl, capture.names: vec | null, any }, text: vec) -> any
-#| rematch::re_match_all : (pattern: CHR, text: vec | null, ...: any) -> any
-#| rematch::re_match_all : (pattern: ~CHR, text: vec | null, ...: any) -> any
+#| rematch::re_match_all1 : (match: list<factor, ...> with { match.length: any, capture.start: any, capture.length: any, capture.names: any, any }, text: any) -> empty
+#| rematch::re_match_all1 : (match: dbl<~factor, ...> with { match.length: dbl<~@"-", ...>, capture.start: null, capture.length: any, capture.names: vec | null, any }, text: vec) -> CHR<> with { dimnames: list?, dim: INT, any }
+#| rematch::re_match_all : (pattern: ~CHR, text: vec | null, ...: any) -> list<>
+#| rematch::re_match_all : (pattern: CHR, text: vec | null, ...: any) -> list<>

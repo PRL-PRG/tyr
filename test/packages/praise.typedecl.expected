@@ -14,5 +14,3 @@
 #| praise::capitalize : (x: vec) -> CHR<>
 #| praise::match_case_sub : (pattern: vec1, part: vec, replacement: vec1, text: vec1) -> CHR1<>
 #| praise::match_case_sub : (pattern: vec1, part: vec, replacement: vec1, text: vec) -> CHR<>
-#| praise::replace_one_template : (template: vec1) -> CHR1<>
-#| praise::praise : (template: (CHR1<> & ~"You are ${adjective}!"<> with {  } | 'a & vec1)?) -> CHR1<> | vec1 & 'a
