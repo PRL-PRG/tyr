@@ -11,6 +11,6 @@
 	url = https://github.com/programLyrique/nativesem
 	branch = main
 [submodule "contractr"]
-	path = contractr
+	path = external/contractr
 	url = https://github.com/PRL-PRG/contractr
 	branch = tyr
