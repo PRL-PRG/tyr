@@ -703,12 +703,25 @@ let setup_include_dirs include_dirs =
    {!C_deps}), so a native function is ordered and bounded exactly like an R
    one. NativeSem is called one top-level unit at a time, through
    [Runner.infer_def]. *)
+(* The routines the package exports with cpp11 or Rcpp, at the types their
+   declared C++ types give (cf. [R_c_typing.Cpp_glue]): their C++ code is not
+   analysed. *)
+let cpp_glue_types (pkg : Pkg.t) =
+  R_c_typing.Cpp_glue.types pkg.root
+  |> List.filter_map (fun ((e : R_c_typing.Cpp_glue.export), ty) ->
+    match ty with
+    | Ok ty -> Some (e.c_name, ty)
+    | Error m -> Format.printf "%s: no type from the C++ glue (%s)@." e.c_name m ; None)
+  |> StrMap.of_list
+
 let run_native opts rep (pkg : Pkg.t) entry_points =
   let module R = Report in
   let module Rn = R_c_typing.Runner in
   Mlsem.System.Config.infer_overload := true ;
   setup_include_dirs opts.include_dirs ;
-  if pkg.c_files = [] then ((fun _ -> None), R_c_typing.Defs.parsed_types_penv ())
+  let glue = cpp_glue_types pkg in
+  let glue_ty name = StrMap.find_opt name glue in
+  if pkg.c_files = [] then (glue_ty, R_c_typing.Defs.parsed_types_penv ())
   else
     let module Runner = R_c_typing.Runner in
     let module PAst = R_c_typing.PAst in
@@ -938,14 +951,17 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
           Mlsem.Types.PEnv.sequential_handler (R_c_typing.Defs.parsed_types_penv ()) run ())))
     in
     (* A routine registered with the types of its arguments and with no C
-       prototype, such as a Fortran subroutine, has the type they give. *)
+       prototype, such as a Fortran subroutine, has the type they give; one
+       defined in C++ glue, the type of its declaration. *)
     let lookup name =
       match Runner.find_existing_binding name idenv env with
       | Some (_, tys) -> Some Mlsem.Types.(TyScheme.get tys |> snd |> GTy.ub)
       | None ->
-        Option.bind (Pkg.registered_arg_types pkg name) (fun arg_types ->
-          try Some (R_c_typing.C_interface.dotC_of_arg_types arg_types)
-          with Failure _ -> None)
+        match Option.bind (Pkg.registered_arg_types pkg name) (fun arg_types ->
+            try Some (R_c_typing.C_interface.dotC_of_arg_types arg_types)
+            with Failure _ -> None) with
+        | Some ty -> Some ty
+        | None -> glue_ty name
     in
     (lookup, penv)
 
