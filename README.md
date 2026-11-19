@@ -13,7 +13,7 @@
 tyr is a work-in-progress static type-checker for R.
 For more information, you can take a look at the [poster](docs/poster.pdf) we presented at the conference useR! 2026.
 
-tyr is already tested on real R codebases. It is in the early stages, 
+tyr is already tested on real R codebases. It is in the early stages,
 but you can star this repository if you want to stay updated, and follow its progress on CRAN packages on the [dashboard](https://prl-prg.github.io/r-typing/)!
 
 ## Structure of the project
@@ -24,19 +24,20 @@ tyr is composed of several components:
   <img src="docs/repo-dependencies.svg" alt="Dependencies between tyr, r-typing, Rsem, NativeSem, MLsem, rstt, sstt and r-parser" width="720">
 </p>
 
-| Component | Description | State of advancement |
-| --- | --- | --- |
-| [tyr](https://github.com/PRL-PRG/tyr) | Orchestrator. Parses R files and native libraries, resolve dependencies, and call the type-checkers. | Tested on 15 CRAN packages |
-| [Rsem](https://github.com/E-Sh4rk/Rsem) | Gradual type-checker for R functions. | Tested on the R code of 15 CRAN packages |
-| [NativeSem](https://github.com/programLyrique/nativesem) | Type inference for library functions in C (support for Fortran is planned). | Tested on the C code of 9 CRAN packages |
-| [RSTT](https://github.com/E-Sh4rk/rstt) | Set-theoretic type algebra for the R language. Defines the type parser and printer, and the operations on types (e.g. subtyping, substitution, constraint solving). | The main R data-structures are supported (atomic vectors, lists, functions, attributes and classes, etc.) |
+| Component                                                        | Description                                                                                                                                                         | State of advancement                                                                                      |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [tyr](https://github.com/PRL-PRG/tyr)                            | Orchestrator. Parses R files and native libraries, resolve dependencies, and call the type-checkers.                                                                | Tested on 15 CRAN packages                                                                                |
+| [Rsem](https://github.com/E-Sh4rk/Rsem)                          | Gradual type-checker for R functions.                                                                                                                               | Tested on the R code of 15 CRAN packages                                                                  |
+| [NativeSem](https://github.com/programLyrique/nativesem)         | Type inference for library functions in C (support for Fortran is planned).                                                                                         | Tested on the C code of 9 CRAN packages                                                                   |
+| [RSTT](https://github.com/E-Sh4rk/rstt)                          | Set-theoretic type algebra for the R language. Defines the type parser and printer, and the operations on types (e.g. subtyping, substitution, constraint solving). | The main R data-structures are supported (atomic vectors, lists, functions, attributes and classes, etc.) |
+| [contractr](https://github.com/PRL-PRG/contractr) (`tyr` branch) | Run-time contracts. Checks each call of an R package against the types that tyr infers.                                                                             | Overloaded, polymorphic and union-domain function types                                                   |
 
 Other external dependencies:
 
-| Component | Description | State of advancement |
-| --- | --- | --- |
-| [MLsem](https://github.com/E-Sh4rk/MLsem) | A typing library for dynamic languages used by our type-checkers (both for R and C code). | Released |
-| [SSTT](https://github.com/E-Sh4rk/sstt/) | A set-theoretic type library used to encode the R type algebra. | Released |
+| Component                                 | Description                                                                               | State of advancement |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------- |
+| [MLsem](https://github.com/E-Sh4rk/MLsem) | A typing library for dynamic languages used by our type-checkers (both for R and C code). | Released             |
+| [SSTT](https://github.com/E-Sh4rk/sstt/)  | A set-theoretic type library used to encode the R type algebra.                           | Released             |
 
 ## Building and running
 
@@ -70,6 +71,7 @@ dune exec tyr -- path/to/package
 # Signatures of the functions the package builds upon (base R, imports).
 # Those of base R are Rsem's (external/Rsem/sigs/*.R), copied to
 # _build/default/types/ next to NativeSem's signatures of the R C API (*.ty)
+# `dune exec tyr` does not update these copies. After you update Rsem, run `make build`.
 dune exec tyr -- --prelude _build/default/types/base.R path/to/package
 
 # Give up on any function that takes longer than 10s, and carry on
@@ -112,12 +114,69 @@ It is off by default, since a name nothing binds is worth knowing about. Only
 the R side has the choice -- NativeSem already types the C identifiers it
 cannot resolve this way.
 
-`--timeout` bounds the type-checking of a *single* function, on both sides and
+`--timeout` bounds the type-checking of a _single_ function, on both sides and
 through the same code (`lib/timeout.ml`), since tyr drives both checkers
 function by function. A function that runs out of time is
 reported and left untyped -- the ones that use it then report an unbound
 variable -- and the rest of the package is checked normally. Without it, one
 pathological function can hold up a whole package indefinitely.
+
+## Run-time checks of the inferred types
+
+`--typedecl FILE` writes the inferred types of the package functions to `FILE`
+as `#|` signatures, one line for each overload. The
+[contractr](https://github.com/PRL-PRG/contractr) package (the `contractr`
+submodule) checks the calls of the package against these types at run time.
+If the file is `inst/TYR` of the package, contractr adds the checks when R
+loads the package. contractr sends its subtyping queries to the rstt REPL of
+this build through the processx package. Install processx before you use
+contractr.
+
+tyr writes the `inst/TYR` file of `test/packages/tricky` with this command:
+
+```bash
+make build
+dune exec tyr -- --timeout 60 --prelude _build/default/types/base.R \
+  --typedecl test/packages/tricky/inst/TYR test/packages/tricky
+```
+
+```
+$ export CONTRACTR_RSTT=$PWD/_build/install/default/bin/rstt
+$ R CMD INSTALL external/contractr
+$ R CMD INSTALL test/packages/tricky
+$ R
+> options(contractr.verbose = 1)
+> library(contractr)
+> library(tricky)
+contractr: tricky: instrumented 25 function(s)
+...
+contractr: tricky::scale2 : ((x: <@"*", ...>) -> (DBL | INT)<difftime> | LGL<>) & ((x: dbl1<~@"*", . | `A>) -> DBL1<~@"*", . | `A>) & ((x: dbl<~@"*", . | `B>) -> (DBL | INT)<~@"*", . | `B>)
+...
+
+> scale2(1:3)
+contractr: call 0: tricky::scale2
+contractr:   arguments @(x: (INT \ INT1)<> with {  })
+contractr:   domain ok
+contractr:   result (DBL \ DBL1)<> with {  }: ok
+[1] 2 4 6
+
+> scale2("a")
+Error in x * 2 : non-numeric argument to binary operator
+contractr: call 1: tricky::scale2
+contractr:   arguments @(x: ^CHR1<> with {  })
+contractr:   domain violation
+contractr:   no result: the call did not return
+Warning message:
+contract violation: call of 'tricky::scale2' is outside its domain
+   ├── call site: ?
+   ├── arguments: @(x: ^CHR1<> with {  })
+   ├── domain: (x: <@"*", ...>) | (x: dbl1<~@"*", . | `A>) | (x: dbl<~@"*", . | `B>)
+   └── blame: caller
+```
+
+`contractr::get_contracts()` gives all the verdicts. `test/packages/tricky/test.R`
+runs more cases. tyr does not write gradual types (`--gradual` with `dyn`) yet.
+The file lists them as `# skipped` comments.
 
 ## How the pipeline works
 
@@ -138,7 +197,7 @@ pathological function can hold up a whole package indefinitely.
    `R_c_typing.Runner.infer_def`. tyr schedules them, so a native function is
    ordered -- and bounded by `--timeout` -- exactly like an R one.
 5. **Linking** (`lib/link.ml`) — a routine's C type is a function over an
-   argument *tuple*; the corresponding R binding is a closure over an R
+   argument _tuple_; the corresponding R binding is a closure over an R
    argument record. tyr converts the type, binds it under the R-visible
    (prefixed) name, and rewrites `.Call(sym, a, b)` into `sym(a, b)` so that
    the R checker uses it. Only `.Call` is rewritten: `.C` and `.External` do
