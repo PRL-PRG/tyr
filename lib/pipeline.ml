@@ -779,9 +779,48 @@ let cpp_glue_types (pkg : Pkg.t) =
   R_c_typing.Cpp_glue.types pkg.root
   |> List.filter_map (fun ((e : R_c_typing.Cpp_glue.export), ty) ->
     match ty with
-    | Ok ty -> Some (e.c_name, ty)
+    | Ok ty -> Some (e.c_name, (e, ty))
     | Error m -> Format.printf "%s: no type from the C++ glue (%s)@." e.c_name m ; None)
   |> StrMap.of_list
+
+(* The glue file of [e], and the line of its wrapper there (the first line
+   that names it followed by a parenthesis), if found. *)
+let cpp_glue_location (pkg : Pkg.t) (e : R_c_typing.Cpp_glue.export) =
+  let file, _ = List.find (fun (_, f) -> f = e.flavor) R_c_typing.Cpp_glue.glue_files in
+  let path = Filename.concat (Filename.concat pkg.root "src") file in
+  let re = Str.regexp ("\\b" ^ Str.quote e.c_name ^ "[ \t]*(") in
+  let line =
+    match In_channel.with_open_text path In_channel.input_lines with
+    | exception Sys_error _ -> None
+    | lines ->
+      List.find_mapi (fun i l ->
+        match Str.search_forward re l 0 with
+        | _ -> Some (i + 1) | exception Not_found -> None) lines
+  in
+  (path, line)
+
+(* One [native_def] record per glue routine, typed at its glue type. Their
+   C++ code is not analysed: [header_kind] [cpp_glue] tells them apart. *)
+let report_cpp_glue rep (pkg : Pkg.t) conventions glue =
+  let module R = Report in
+  glue |> StrMap.iter (fun name ((e : R_c_typing.Cpp_glue.export), ty) ->
+    let file, line = cpp_glue_location pkg e in
+    let printed = R.one_line TyScheme.pp_short (TyScheme.mk_mono (GTy.mk ty)) in
+    emit rep "native_def"
+      [ ("name", R.S name) ; ("kind", R.S "function") ; ("file", R.S file) ;
+        ("line", match line with Some l -> R.I l | None -> R.N) ; ("col", R.N) ;
+        ("convention", opt_s (Option.map R_c_typing.Package.calling_convention_to_string
+                                (StrMap.find_opt name conventions))) ;
+        ("is_entry_point", R.B (StrMap.mem name conventions)) ;
+        ("is_declaration", R.B false) ;
+        ("calls", R.L []) ; ("status", R.S "typed") ; ("header_kind", R.S "cpp_glue") ;
+        ("type", R.S printed) ;
+        ("degenerate", R.B (R.degenerate ty)) ;
+        ("any_args", R.L (R.any_args printed)) ;
+        ("error_title", R.N) ; ("error_detail", R.N) ;
+        (* Not inferred: no time, so that it stays out of the timings. *)
+        ("elapsed_sec", R.N) ] ;
+    bump rep "native_n_typed")
 
 let run_native opts rep (pkg : Pkg.t) entry_points =
   let module R = Report in
@@ -789,7 +828,11 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
   Mlsem.System.Config.infer_overload := true ;
   setup_include_dirs opts.include_dirs ;
   let glue = cpp_glue_types pkg in
-  let glue_ty name = StrMap.find_opt name glue in
+  let glue_ty name = Option.map snd (StrMap.find_opt name glue) in
+  let conventions = StrMap.of_list entry_points in
+  (* Printing a type reads the type aliases, through [PEnv]. *)
+  ignore (Mlsem.Types.PEnv.sequential_handler (R_c_typing.Defs.parsed_types_penv ())
+            (fun () -> report_cpp_glue rep pkg conventions glue) ()) ;
   if pkg.c_files = [] then (glue_ty, R_c_typing.Defs.parsed_types_penv ())
   else
     let module Runner = R_c_typing.Runner in
@@ -797,7 +840,6 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
     let module Idenv = Runner.Idenv in
     let opts_native = native_options opts in
     let visible _ = true in
-    let conventions = StrMap.of_list entry_points in
     (* The outcomes NativeSem reports for the unit being checked: reset before
        each [infer_def], folded into one [native_def] record after it. *)
     let outcomes = ref [] in
@@ -813,6 +855,9 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
        [Timeout] outcome never comes. *)
     let native_def ~kind ~file ~(past : PAst.top_level_unit) ~calls ~timed_out ~wall =
       let name = PAst.top_level_unit_name past in
+      (* A C declaration of a glue routine (later's [src/init.c] declares
+         them to register them): the routine is reported from its glue. *)
+      if not (StrMap.mem name glue && C_deps.is_declaration past) then begin
       let outs = List.rev !outcomes in
       let typed = List.find_map (function
           | (e, Rn.Typed { header = h ; tys ; _ }) -> Some (e, h, tys) | _ -> None) outs in
@@ -847,6 +892,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
            ("error_detail", opt_s (Option.bind err snd)) ;
            ("elapsed_sec", R.F elapsed) ]) ;
       if kind = "function" then bump rep ("native_n_" ^ status)
+      end
     in
     let run () =
       let t0 = Unix.gettimeofday () in
@@ -1020,17 +1066,19 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
           Mlsem.Types.PEnv.sequential_handler (R_c_typing.Defs.parsed_types_penv ()) run ())))
     in
     (* A routine registered with the types of its arguments and with no C
-       prototype, such as a Fortran subroutine, has the type they give; one
-       defined in C++ glue, the type of its declaration. *)
+       prototype, such as a Fortran subroutine, has the type they give. One
+       defined in C++ glue has the type of its glue first: C can only declare
+       it, at SEXP types that say nothing (later's [src/init.c]). *)
     let lookup name =
+      match glue_ty name with
+      | Some ty -> Some ty
+      | None ->
       match Runner.find_existing_binding name idenv env with
       | Some (_, tys) -> Some Mlsem.Types.(TyScheme.get tys |> snd |> GTy.ub)
       | None ->
-        match Option.bind (Pkg.registered_arg_types pkg name) (fun arg_types ->
+        Option.bind (Pkg.registered_arg_types pkg name) (fun arg_types ->
             try Some (R_c_typing.C_interface.dotC_of_arg_types arg_types)
-            with Failure _ -> None) with
-        | Some ty -> Some ty
-        | None -> glue_ty name
+            with Failure _ -> None)
     in
     (lookup, penv)
 

@@ -161,3 +161,27 @@
  (deps packages/known-issues.expected known-issues.output)
  (action
   (diff packages/known-issues.expected known-issues.output)))
+
+; Routines exported through Rcpp: typed from the C++ glue
+; (src/RcppExports.cpp), although src/init.c declares them at SEXP types; the
+; C++-only header src/scaler.h is not parsed. The report lists the routines
+; as native functions (header_kind cpp_glue).
+(rule
+ (alias runtest)
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  prelude/base.R
+  (source_tree packages/cppglue))
+ (action
+  (with-stdout-to
+   cppglue.output
+   (progn
+    (run %{exe:../bin/main.exe} --prelude prelude/base.R --report cppglue.jsonl
+      packages/cppglue)
+    (run grep -o "\"name\":\"[^\"]*\",\"kind\":\"function\",\"file\":\"[^\"]*\",\"line\":[0-9]*\\|\"header_kind\":\"[a-z_]*\"" cppglue.jsonl)))))
+
+(rule
+ (alias runtest)
+ (deps packages/cppglue.expected cppglue.output)
+ (action
+  (diff packages/cppglue.expected cppglue.output)))
