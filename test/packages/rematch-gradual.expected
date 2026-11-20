@@ -21,6 +21,8 @@ re_match_all1: (((match: dbl<~factor, ...> with { match.length: dbl<~@"-", ...>,
  ((match: list<factor, ...> with { match.length: any, capture.start: any, capture.length: any, capture.names: any, any }, text: any)
  -> empty))<>
 
-re_match_all: ((pattern: CHR, text: vec | null, ...: any) | (pattern: ~CHR, text: vec |
- null, ...: any) -> list<>)<>
+re_match_all: Untypeable: untypeable application of base::gregexpr
+Line 103, characters 11-52
+argument: @('pattern & CHR, CHR<>, perl: tt<>, ...: ('_ell, empty? | `_ell))
+failing call: base::gregexpr(NA_character_, NA_character_, perl = TRUE)
 

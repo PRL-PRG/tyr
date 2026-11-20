@@ -148,7 +148,7 @@ failing call: base::nchar(as.raw(0), as.raw(0), as.raw(0), as.raw(0))
 cb_ty: Untypeable: untypeable coercion
 Line 176, characters 9-26
 expected: (a: dbl1) --> dbl1
-given: ((a: 'a & <@"+", ...>) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: 'a & dbl1<~@"+", . | `I109>) --> DBL1<~@"+", . | `I109>) & ((a: 'a & ((DBL | dbl & v('I1068))<~@"+", . | `I109> | dbl1<~@"+", . | `I109>)) --> (INT | (DBL | (DBL | INT) & v('I1068)))<~@"+", . | `I109>)
+given: ((a: 'a & <@"+", ...>) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: 'a & dbl1<~@"+", . | `I116>) --> DBL1<~@"+", . | `I116>) & ((a: 'a & ((DBL | dbl & v('I1147))<~@"+", . | `I116> | dbl1<~@"+", . | `I116>)) --> (INT | (DBL | (DBL | INT) & v('I1147)))<~@"+", . | `I116>)
 expression may be: <fun>
 
 cb_sig: Untypeable: untypeable coercion
