@@ -292,6 +292,60 @@ let order_defs items =
     in
     topo_sort (List.init n Fun.id) deps |> List.map (fun i -> arr.(i))
 
+(* The top-level items of all the files of a package, each with its file, in
+   an order that follows [order_defs]'s rules across files rather than within
+   one: a function definition comes after the definitions it uses, wherever
+   they are written. Ordering the files instead cannot satisfy two files that
+   use each other, and the one checked first then finds the other's functions
+   unbound although no definition is recursive.
+
+   [files] is in [order_r_files]'s order, which is the order of the items when
+   nothing else decides (inside a cycle, and between statements):
+
+   - a statement may only rely on the items before it in that order, and
+     statements of a file keep their relative order;
+   - the definitions of a name keep their relative order, and an item using a
+     name comes after all of them but those a statement may not rely on (R
+     binds the name to the last one when the package is loaded).
+
+   Mutually recursive definitions are still a cycle, and one of them is still
+   reported as unbound. *)
+let order_items files =
+  let arr =
+    files |> List.concat_map (fun f -> List.map (fun it -> (f, it)) (List.combine f.prog f.defs))
+    |> Array.of_list in
+  let n = Array.length arr in
+  let def i = (snd (snd arr.(i)) : R_deps.def) in
+  let is_fun i = is_function_def (fst (snd arr.(i))) in
+  let path i = (fst arr.(i)).path in
+  (* The items defining each name, in order. *)
+  let defining = Hashtbl.create 64 in
+  for i = n - 1 downto 0 do
+    Option.iter (fun nm ->
+      Hashtbl.replace defining nm (i :: Option.value ~default:[] (Hashtbl.find_opt defining nm)))
+      (def i).name
+  done ;
+  let prev_stmt = Array.make n (-1) and prev_same = Array.make n (-1) in
+  let last_stmt = Hashtbl.create 16 and last_def = Hashtbl.create 64 in
+  for i = 0 to n - 1 do
+    prev_stmt.(i) <- Option.value ~default:(-1) (Hashtbl.find_opt last_stmt (path i)) ;
+    if not (is_fun i) then Hashtbl.replace last_stmt (path i) i ;
+    Option.iter (fun nm ->
+      prev_same.(i) <- Option.value ~default:(-1) (Hashtbl.find_opt last_def nm) ;
+      Hashtbl.replace last_def nm i) (def i).name
+  done ;
+  let deps i =
+    let used =
+      StrSet.elements (def i).uses
+      |> List.concat_map (fun nm -> Option.value ~default:[] (Hashtbl.find_opt defining nm))
+      (* Its own name is recursion, not a use of its other definitions:
+         those are ordered by [prev_same]. *)
+      |> List.filter (fun j -> j <> i && (def j).name <> (def i).name && (is_fun i || j < i)) in
+    let keep j acc = if j >= 0 then j :: acc else acc in
+    used |> keep prev_same.(i) |> keep (if is_fun i then -1 else prev_stmt.(i))
+  in
+  topo_sort (List.init n Fun.id) deps |> List.map (fun i -> arr.(i))
+
 (* ===== The LLM fallback's context ===== *)
 
 (* What the fallback needs besides the definition: its configuration, the
@@ -410,12 +464,18 @@ let unbound_callees ctx ~name ~defined (def : R_deps.def) =
    *did* -- the guard says whether it ran out of time, [Driver.on_outcome]
    whether the definition was untypeable, with the checker's error, and
    [Driver.find] whether its name ended up typed. [role] tells the prelude
-   from the package; [defined] and [native_syms] classify an unbound name. *)
+   from the package; [defined] and [native_syms] classify an unbound name.
+
+   [mode] splits the work for a package whose definitions are checked in an
+   order across its files (cf. [order_items]): [`Annotations] only declares
+   the file's annotations, [`Items (items, typed_here)] only checks [items],
+   in that order, against the annotations declared before. [`Whole], the
+   default, does both, for the file alone. *)
 (* The packages R attaches by default (cf. [MetaEnv.search]): their names are
    the prelude's. *)
 let default_packages = [ "stats" ; "graphics" ; "grDevices" ; "utils" ; "datasets" ; "methods" ; "base" ]
 
-let process_r_file ?timeout ?llm ?(self="") rep ~role ~defined ~native_syms ctx f =
+let process_r_file ?timeout ?llm ?(self="") ?(mode=`Whole) rep ~role ~defined ~native_syms ctx f =
   let module R = Report in
   let warn what name exn =
     Format.printf "tyr: skipping %s %s (%s)@.@." what name (Printexc.to_string exn) in
@@ -428,29 +488,38 @@ let process_r_file ?timeout ?llm ?(self="") rep ~role ~defined ~native_syms ctx 
       [ ("file", R.S f.path) ; ("comment", R.S name) ;
         ("exn", R.S (Printexc.to_string e)) ] in
   (* The annotations declared by the previous files precede everything here. *)
-  let ctx = { ctx with Driver.lannots =
-    ctx.Driver.lannots |> List.map (fun a -> { a with Driver.loffset = min_int }) } in
-  (* An annotation can span several [#|] lines: [Driver.annotations] joins
-     them, and fails on a continuation line that continues nothing. *)
-  let annots =
-    try Driver.annotations f.extras
-    with e -> annot_error "#|" e ; [] in
-  let ctx =
-    List.fold_left (fun ctx annot ->
-      try Driver.treat_annotation f.prog ctx annot
-      with e -> annot_error (annot_name (snd annot)) e ; ctx)
-      ctx annots
+  let ctx = match mode with
+    | `Whole -> { ctx with Driver.lannots =
+        ctx.Driver.lannots |> List.map (fun a -> { a with Driver.loffset = min_int }) }
+    | `Annotations | `Items _ -> ctx in
+  let ctx = match mode with
+    | `Items _ -> ctx
+    | `Whole | `Annotations ->
+      (* An annotation can span several [#|] lines: [Driver.annotations] joins
+         them, and fails on a continuation line that continues nothing. *)
+      let annots =
+        try Driver.annotations f.extras
+        with e -> annot_error "#|" e ; [] in
+      let ctx =
+        List.fold_left (fun ctx annot ->
+          try Driver.treat_annotation f.prog ctx annot
+          with e -> annot_error (annot_name (snd annot)) e ; ctx)
+          ctx annots
+      in
+      (* As [Driver.process]: the classes of the class-overloads declared so far. *)
+      (try MetaEnv.declare_classes ctx.Driver.tenv with e -> warn "classes" f.path e) ;
+      ctx
   in
-  (* As [Driver.process]: the classes of the class-overloads declared so far. *)
-  (try MetaEnv.declare_classes ctx.Driver.tenv with e -> warn "classes" f.path e) ;
   (* [f.defs] was computed at parse time: [f.prog] may since have had its
      [.Call]s rewritten (see [Link.rewrite_native_calls]), which would hide
      the native calls each definition makes. *)
-  let items = List.combine f.prog f.defs in
   let package = role = "package" in
   (* The definitions of the file typed so far, with their types (latest
      first): the fallback's examples. *)
-  let typed_here = ref [] in
+  let items, typed_here = match mode with
+    | `Whole -> order_defs (List.combine f.prog f.defs), ref []
+    | `Annotations -> [], ref []
+    | `Items (items, typed_here) -> items, typed_here in
   List.fold_left (fun ctx (past, (def : R_deps.def)) ->
     let name = Driver.toplevel_name past |> Option.value ~default:"<statement>" in
     (* Rsem prints an anonymous statement as [_]. *)
@@ -656,7 +725,7 @@ let process_r_file ?timeout ?llm ?(self="") rep ~role ~defined ~native_syms ctx 
       end
     end ;
     ctx')
-    ctx (order_defs items)
+    ctx items
 
 (* ===== Native side ===== *)
 
@@ -1197,11 +1266,41 @@ let run opts root =
         let llm =
           opts.llm |> Option.map (fun llm ->
             { llm ; root ; r_files = List.map (fun (f : r_file) -> f.path) files }) in
-        List.fold_left (fun ctx f ->
-          Format.printf "@.@{<bold>===== %s =====@}@." f.path ;
-          process_r_file ?timeout:opts.timeout ?llm ~self:pkg.name rep ~role:"package" ~defined ~native_syms ctx
-            { f with prog = Link.rewrite_native_calls ~dotcode known f.prog })
-          ctx files
+        let files =
+          List.map (fun f -> { f with prog = Link.rewrite_native_calls ~dotcode known f.prog }) files in
+        let process ~mode ctx f =
+          process_r_file ?timeout:opts.timeout ?llm ~self:pkg.name ~mode rep ~role:"package"
+            ~defined ~native_syms ctx f in
+        (* The annotations of every file first, so that a signature is known
+           wherever its name is used. The annotations of local variables are
+           claimed by position in their file: each file keeps its own (cf.
+           [Driver.claim_lannots]), and they are put back in the context while
+           its definitions are checked. *)
+        let lannots = Hashtbl.create 16 in
+        let ctx =
+          List.fold_left (fun ctx f ->
+            let ctx = process ~mode:`Annotations { ctx with Driver.lannots = [] } f in
+            Hashtbl.replace lannots f.path ctx.Driver.lannots ; ctx)
+            { ctx with Driver.lannots = [] } files in
+        (* Then the definitions, in an order across the files (cf.
+           [order_items]). *)
+        let typed_here = Hashtbl.create 16 in
+        let current = ref None in
+        List.fold_left (fun ctx (f, item) ->
+          let ctx =
+            if !current = Some f.path then ctx
+            else begin
+              Option.iter (fun p -> Hashtbl.replace lannots p ctx.Driver.lannots) !current ;
+              current := Some f.path ;
+              Format.printf "@.@{<bold>===== %s =====@}@." f.path ;
+              { ctx with Driver.lannots =
+                  Option.value ~default:[] (Hashtbl.find_opt lannots f.path) }
+            end in
+          let here = match Hashtbl.find_opt typed_here f.path with
+            | Some r -> r
+            | None -> let r = ref [] in Hashtbl.add typed_here f.path r ; r in
+          process ~mode:(`Items ([ item ], here)) ctx f)
+          { ctx with Driver.lannots = [] } (order_items files)
         |> ignore ;
         opts.fuzz |> Option.iter (fun fopts ->
           Format.printf "@.@{<bold>===== Fuzzing =====@}@.@." ;
