@@ -48,8 +48,8 @@ type fundef = {
    handed to a callback registration, either of those behind a cast -- so a
    function reached only as a value is not mistaken for dead code. *)
 let calls_of ~fun_names = function
-  | _, (PAst.Fundef (_, _, _, body) | PAst.MacroDef (_, _, body)) ->
-    PAst.extract_calls_from_expr ~fun_names body
+  | _, (PAst.Fundef (_, _, params, body) | PAst.MacroDef (_, params, body)) ->
+    PAst.extract_calls_from_expr ~fun_names ~locals:(PAst.local_names params body) body
     |> List.filter (fun n -> StrSet.mem n fun_names)
     |> List.sort_uniq String.compare
   | _ -> []
