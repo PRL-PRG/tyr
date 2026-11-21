@@ -258,8 +258,8 @@ turns 3, checks 2, tokens 300 in, 30 out
 
 ===== name_or: a parameter pinned to NULL is refused as too narrow
   -> rejected: too narrow: `x` may only be `NULL`. Accepted that way, a signature hides the failure rather than typing the function: callers pass other values. Give the types of what they pass; if that is rejected, give up and say why.
-  -> accepted: (x: vec | null) -> CHR
-typed: (x: vec | null) -> CHR (checked as (x: vec | null) -> CHR)
+  -> accepted: (x: null | vec) -> CHR
+typed: (x: null | vec) -> CHR (checked as (x: vec | null) -> CHR)
 turns 3, checks 2, tokens 300 in, 30 out
 
 ===== field_or: a record field pinned to NULL is refused as too narrow
@@ -317,12 +317,12 @@ turns 2, checks 2, tokens 200 in, 20 out
   -> accepted: (x: CHR | null) -> CHR
   -> accepted: (x: dbl | null) -> CHR
      note: neither this signature nor `(x: CHR | null) -> CHR`, accepted before, includes the other. One that accepts the arguments of both, e.g. with the union of their parameter types, may be accepted too, and is better.
-  -> accepted: (x: vec | null) -> CHR
-typed: (x: vec | null) -> CHR (checked as (x: vec | null) -> CHR)
+  -> accepted: (x: null | vec) -> CHR
+typed: (x: null | vec) -> CHR (checked as (x: vec | null) -> CHR)
 turns 3, checks 3, tokens 300 in, 30 out
 
 ===== name_or: out of turns: the best accepted is kept, not the last
-typed: (x: vec | null) -> CHR (checked as (x: vec | null) -> CHR)
+typed: (x: null | vec) -> CHR (checked as (x: vec | null) -> CHR)
 turns 1, checks 2, tokens 100 in, 10 out
 
 ===== double_it: a signature claimed but never checked

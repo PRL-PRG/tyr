@@ -142,13 +142,13 @@ failing call: base::toupper(list())
 
 blame_arity: Untypeable: untypeable application of base::nchar
 Line 165, characters 46-63
-argument: @('x & vec, 'x & vec, 'x & vec, 'x & vec)
+argument: @(vec & 'x, vec & 'x, vec & 'x, vec & 'x)
 failing call: base::nchar(as.raw(0), as.raw(0), as.raw(0), as.raw(0))
 
 cb_ty: Untypeable: untypeable coercion
 Line 176, characters 9-26
 expected: (a: dbl1) --> dbl1
-given: ((a: 'a & <@"+", ...>) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: 'a & dbl1<~@"+", . | `I115>) --> DBL1<~@"+", . | `I115>) & ((a: 'a & ((DBL | dbl & v('I1151))<~@"+", . | `I115> | dbl1<~@"+", . | `I115>)) --> (INT | (DBL | (DBL | INT) & v('I1151)))<~@"+", . | `I115>)
+given: ((a: ((DBL | dbl & v('I1151))<~@"+", . | `I115> | dbl1<~@"+", . | `I115>) & 'a) --> (INT | (DBL | (DBL | INT) & v('I1151)))<~@"+", . | `I115>) & ((a: <@"+", ...> & 'a) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: dbl1<~@"+", . | `I115> & 'a) --> DBL1<~@"+", . | `I115>)
 expression may be: <fun>
 
 cb_sig: Untypeable: untypeable coercion

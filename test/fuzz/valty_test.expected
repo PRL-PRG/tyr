@@ -64,7 +64,7 @@ list(1L) : { 1L<> with {  } }<> with {  }  (inexact)
   { int1 }                   in
   { chr1 }                   in
   { }                        unknown
-function(x) x : arrow<> with {  }  (inexact)
+function(x) x : (empty -> any)<> with {  }  (inexact)
   any                        in
   (x: any) -> any            unknown
   int                        out
