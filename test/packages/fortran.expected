@@ -5,7 +5,7 @@
 
 .C(dist_): [DBL, INT | LGL] --> c_void
 
-vec_len: ([null] -> 0L) & ([any_sexp] -> ^INT1) & ([(externalptr | vec1 | (empty -> any)) | sym] -> 1L)
+vec_len: ([null] -> 0L<> with {  }) & ([any_sexp] -> ^INT1<> with {  }) & ([(externalptr | vec1 | (empty -> any)) | sym] -> 1L<> with {  })
 
 
 ===== R code =====
@@ -14,8 +14,9 @@ vec_len: ([null] -> 0L) & ([any_sexp] -> ^INT1) & ([(externalptr | vec1 | (empty
 ===== prelude prelude/base.R =====
 F_count: list(double*, int*, int*)
 
-F_pkg_len: ((x1: (externalptr | vec1 | (empty -> any)) | sym) -> 1L) &
-           ((x1: any_sexp) -> ^INT1) & ((x1: null) -> 0L)
+F_pkg_len: ((x1: (externalptr | vec1 | (empty -> any)) | sym) ->
+           1L<> with {  }) & ((x1: any_sexp) -> ^INT1<> with {  }) &
+           ((x1: null) -> 0L<> with {  })
 
 F_scale: list(double*, int* (INTSXP), double*, int* (LGLSXP))
 
@@ -39,6 +40,6 @@ count_lgl: ((x: null | vec) -> LGL1<>)<>
 
 dist: (((x: null | vec) -> DBL<>) & ((x: vec1) -> DBL1<>))<>
 
-len: (((x: (externalptr | vec1 | (empty -> any)) | sym) -> 1L) & ((x: any_sexp)
- -> ^INT1) & ((x: null) -> 0L))<>
+len: (((x: (externalptr | vec1 | (empty -> any)) | sym) -> 1L<> with {  }) &
+ ((x: any_sexp) -> ^INT1<> with {  }) & ((x: null) -> 0L<> with {  }))<>
 
