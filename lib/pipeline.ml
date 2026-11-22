@@ -900,6 +900,10 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
       emit rep "phase"
         [ ("name", R.S "c_parsing") ; ("elapsed_sec", R.F (Unix.gettimeofday () -. t0)) ;
           ("count", R.I (List.length pasts)) ] ;
+      (* What the package's C functions and macros may do to the attributes of
+         the R values given to them: a call widens those only as far as that
+         (cf. NativeSem's [Summaries]). *)
+      let summaries = R_c_typing.Summaries.of_pasts pasts in
       (* [infer_def]'s [Include] arm recurses over every item of a system
          header. Those never reach the hook, so they are counted, not listed. *)
       let n_include_items = ref 0 in
@@ -978,13 +982,13 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
                 let own =
                   StrMap.find_opt file file_idenvs |> Option.value ~default:Idenv.empty in
                 let own, env, decl =
-                  Runner.infer_def ~internal_scope:file ~force_internal_global:true
+                  Runner.infer_def ~summaries ~internal_scope:file ~force_internal_global:true
                     visible opts_native (own, env, decl) item
                 in
                 (idenv, env, decl, StrMap.add file own file_idenvs)
               | _ ->
                 let idenv, env, decl =
-                  Runner.infer_def ~internal_scope:file visible opts_native
+                  Runner.infer_def ~summaries ~internal_scope:file visible opts_native
                     (idenv, env, decl) item
                 in
                 (idenv, env, decl, file_idenvs)
@@ -1017,7 +1021,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
           let t1 = Unix.gettimeofday () in
           let (idenv', env, decl), timed_out =
             Timeout.guard' opts.timeout ~name:d.name ~unchanged (fun () ->
-              Runner.infer_def ~internal_scope:d.file
+              Runner.infer_def ~summaries ~internal_scope:d.file
                 ~convention:(StrMap.find_opt d.name conventions)
                 ?arg_types:(Pkg.registered_arg_types pkg d.name)
                 visible opts_native unchanged d.past)
