@@ -185,8 +185,8 @@ contract violation: call of 'tricky::scale2' is outside its domain
    └── blame: caller
 ```
 
-`contractr::get_contracts()` gives all the verdicts. `test/packages/tricky/test.R`
-runs more cases. tyr does not write gradual types (`--gradual` with `dyn`) yet.
+`contractr::get_contracts()` gives all the verdicts. tyr does not write gradual
+types (`--gradual` with `dyn`) yet.
 The file lists them as `# skipped` comments.
 
 ## How the pipeline works
