@@ -1,6 +1,6 @@
 
 ===== double_it
-inferred: ∀`a. (((x: <@"*", ...>) -> (DBL | INT)<difftime> | LGL<>) & ((x: dbl1<~@"*", . | `a>) -> DBL1<~@"*", . | `a>) & ((x: dbl<~@"*", . | `a>) -> (DBL | INT)<~@"*", . | `a>))<>
+inferred: ∀`a. (((x: <@"*", ...>) -> (DBL | INT)<difftime> | LGL<>) & ((x: dbl1<~@"*", . | `a>) -> DBL1<~@"*", . | `a>) & ((x: dbl<~@"*", . | `a> | null) -> (DBL | INT)<~@"*", . | `a>))<>
 (x: dbl) -> dbl
   accepted: (x: dbl) -> dbl
 (x: chr) -> chr
@@ -25,7 +25,7 @@ inferred: untypeable (unbound variable)
 (n: dbl1) -> dbl1
   rejected: untypeable application of fact
     argument: @((DBL | INT)<Date> | (DBL | INT)<POSIXt, POSIXct> | (DBL | INT)<difftime> | DBL1<~@"-", ...> | LGL<>)
-    failing call: fact(structure(NA_integer_, class = c("POSIXt", "POSIXct")))
+    failing call: fact(NA)
 
 ===== first
 inferred: ∀'a,'b. (((x: <@"[[", ...>) -> any) & ((x: v('b)<~@"[[", ...>) -> v1('b)<>) & ((x: { 'a }<~@"[[", ...>) -> 'a))<>
@@ -76,7 +76,7 @@ inferred: untypeable (unbound variable)
     name: mutual_b
 
 ===== scale_by
-inferred: ∀'a,`a. (((x: (DBL | dbl & v('a))<~@"*", . | `a>, by: ((DBL | dbl & v('a))<. | `a> | null)?, ...: any) -> (DBL | INT)<. | `a>) & ((x: (dbl1 & v1('a))<~@"*", . | `a>, by: ((DBL1<. | `a> | (dbl & v('a))<. | `a>) | null)?, ...: any) -> DBL1<. | `a> | (INT | (DBL | INT) & v('a))<. | `a>) & ((x: <@"*", ...>, by: any?, ...: any) -> (DBL | INT)<difftime> | LGL<>) & ((x: DBL1<~@"*", . | `a>, by: (dbl1<. | `a>)?, ...: any) | (x: dbl1<~@"*", . | `a>, by: (DBL1<. | `a>)?, ...: any) -> DBL1<. | `a>) & ((x: dbl1<~@"*", . | `a>, by: (dbl1<. | `a>)?, ...: any) -> dbl1<. | `a>))<>
+inferred: ∀'a,`a. (((x: (DBL | dbl & v('a))<~@"*", . | `a> | null, by: ((DBL | dbl & v('a))<. | `a> | null)?, ...: any) -> (DBL | INT)<. | `a>) & ((x: (dbl1 & v1('a))<~@"*", . | `a>, by: ((DBL1<. | `a> | (dbl & v('a))<. | `a>) | null)?, ...: any) -> DBL1<. | `a> | (INT | (DBL | INT) & v('a))<. | `a>) & ((x: <@"*", ...>, by: any?, ...: any) -> (DBL | INT)<difftime> | LGL<>) & ((x: DBL1<~@"*", . | `a>, by: (dbl1<. | `a>)?, ...: any) | (x: dbl1<~@"*", . | `a>, by: (DBL1<. | `a>)?, ...: any) -> DBL1<. | `a>) & ((x: dbl1<~@"*", . | `a>, by: (dbl1<. | `a>)?, ...: any) -> dbl1<. | `a>))<>
 (x: dbl, by: dbl?, ...: any) -> dbl
   accepted: (x: dbl, by: dbl?, ...: any) -> dbl
 (x: dbl, by: dbl, ...: any) -> dbl
