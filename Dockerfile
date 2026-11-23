@@ -34,7 +34,7 @@ ENV PATH="/home/opam/.cargo/bin:${PATH}"
 # Dockerfile: tyr builds NativeSem and Rsem in one process, so they must agree.
 ARG SSTT_REF=51f2e83a4e35846167fea1b301353b57e348075c
 ARG MLSEM_REF=952ba1619da539a9b8bb228638a6de887fdbb936
-ARG BISECT_PPX_REF=2d8dffbbfc0c431a37319d4d9a143836c9ec542e
+ARG BISECT_PPX_REF=984a92a79e7c97563f46caf268a9ce01bc48c3af
 
 RUN opam update --yes && eval $(opam env) && \
     opam pin add sstt      "git+https://github.com/E-Sh4rk/sstt.git#${SSTT_REF}" --yes --no-action --ignore-pin-depends && \
@@ -44,12 +44,13 @@ RUN opam update --yes && eval $(opam env) && \
       opam pin add "$pkg" "git+https://github.com/E-Sh4rk/MLsem.git#${MLSEM_REF}" --yes --no-action --ignore-pin-depends; \
     done && \
     # bisect_ppx's last release (2.8.3) wants cmdliner < 2, which the r-parser
-    # build below upgrades to 2.x, removing it; its master accepts cmdliner 2.
-    # But neither builds with ppxlib >= 0.36 (its AST moved to OCaml 5.2's,
-    # where Pexp_function takes 3 arguments), and master's opam file does not
-    # say so: ppxlib is pinned, so that no later opam call upgrades it.
-    opam pin add bisect_ppx "git+https://github.com/aantron/bisect_ppx.git#${BISECT_PPX_REF}" --yes --no-action && \
-    opam pin add ppxlib 0.35.0 --yes --no-action && \
+    # build below upgrades to 2.x, and neither it nor its master builds with
+    # ppxlib >= 0.36, while OCaml 5.5 needs ppxlib >= 0.38. Its PR #448
+    # (ppxlib 0.36, still open) is in a fork, adapted to OCaml 5.5, which also
+    # has master's cmdliner 2 support. ppxlib is pinned to a version that
+    # supports OCaml 5.5, so that no later opam call changes it.
+    opam pin add bisect_ppx "git+https://github.com/Kakadu/bisect_ppx_ng.git#${BISECT_PPX_REF}" --yes --no-action && \
+    opam pin add ppxlib 0.38.0 --yes --no-action && \
     # Everything the four projects need that opam knows about, explicitly:
     # rstt-repl wants menhir, rstt zarith, r-c-typing ppx_inline_test and
     # (through its c-parser) atdgen; rstt's tests want ppx_expect; tyr yojson
