@@ -36,8 +36,9 @@ let quietly f =
   Format.pp_print_flush Format.std_formatter () ;
   let out = Format.pp_get_formatter_out_functions Format.std_formatter () in
   Format.pp_set_formatter_out_functions Format.std_formatter
-    { out_string = (fun _ _ _ -> ()) ; out_flush = ignore ; out_newline = ignore ;
-      out_spaces = ignore ; out_indent = ignore } ;
+    (* A record update, since OCaml 5.5 added a field (out_width). *)
+    { out with out_string = (fun _ _ _ -> ()) ; out_flush = ignore ;
+               out_newline = ignore ; out_spaces = ignore ; out_indent = ignore } ;
   Fun.protect f ~finally:(fun () ->
     Format.pp_print_flush Format.std_formatter () ;
     Format.pp_set_formatter_out_functions Format.std_formatter out)
