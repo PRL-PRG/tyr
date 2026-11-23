@@ -1,0 +1,3 @@
+Package: mixpkg
+Version: 0.1.0
+Title: Small package with C and R code, exercising the whole tyr pipeline

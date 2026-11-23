@@ -19,6 +19,28 @@
  (action
   (diff packages/smallpkg.expected smallpkg.output)))
 
+; ===== A small package with C and R code =====
+; Typed with the base prelude: R wrappers of native functions (one of which
+; sets attributes), an S3 generic and its methods, a helper defined in a later
+; file, and an untypeable function whose caller then reports an unbound
+; variable. It takes a few seconds; the dashboard (r-typing) types real
+; packages.
+(rule
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  prelude/base.R
+  (source_tree packages/mixpkg))
+ (action
+  (with-stdout-to
+   mixpkg.output
+   (run %{exe:../bin/main.exe} --timeout 20 --prelude prelude/base.R packages/mixpkg))))
+
+(rule
+ (alias runtest)
+ (deps packages/mixpkg.expected mixpkg.output)
+ (action
+  (diff packages/mixpkg.expected mixpkg.output)))
+
 ; --filter: via_helper and its callees (helper, then the native function
 ; first), and the native function make_pair alone. c:helper names no native
 ; function (helper is an R function): a warning.
@@ -161,29 +183,6 @@
  (deps packages/rematch-gradual.expected rematch-gradual.output)
  (action
   (diff packages/rematch-gradual.expected rematch-gradual.output)))
-
-(rule
- (alias runtest)
- (deps
-  (glob_files %{project_root}/types/*.ty)
-  prelude/base.R
-  (source_tree packages/prettyunits))
- ; pretty_p_value takes exponential time to fail since the prelude declares
- ; is.numeric (about 80 s), hence a long timeout. It is longer than the
- ; dashboard's (r-typing's FUN_TIMEOUT, 20 s): pretty_round and pretty_signif
- ; take 10-12 s on a fast machine, and more than 20 s on a GitHub runner. With
- ; 90 s, pretty_p_value failed on some machines and timed out on others: the
- ; limit is far enough above its time that it always fails.
- (action
-  (with-stdout-to
-   prettyunits.output
-   (run %{exe:../bin/main.exe} --timeout 240 --prelude prelude/base.R packages/prettyunits))))
-
-(rule
- (alias runtest)
- (deps packages/prettyunits.expected prettyunits.output)
- (action
-  (diff packages/prettyunits.expected prettyunits.output)))
 
 (rule
  (alias runtest)

@@ -1,0 +1,4 @@
+useDynLib(mixpkg, .registration = TRUE, .fixes = "C_")
+export(measure, describe, count_missing, report)
+S3method(describe, measure)
+S3method(describe, default)
