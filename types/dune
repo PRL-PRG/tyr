@@ -17,4 +17,4 @@
 (install
  (section share)
  (package tyr)
- (files base.R stats.R))
+ (files base.R stats.R utils.R))

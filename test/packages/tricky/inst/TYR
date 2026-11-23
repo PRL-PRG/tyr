@@ -12,16 +12,16 @@
 #| tricky::lookup : (key: vec1) -> ("two"<> | 1L<>) | null
 #| tricky::either : (x: 'b \ null, y: 'a) -> 'b \ null
 #| tricky::either : (x: null & 'b, y: 'a) -> 'a
-#| tricky::combine : (x: { 'a }, y: null | (v('b) | { 'a })) -> { v1('b)<> | 'a }<>
 #| tricky::combine : (x: null | { 'a }, y: null | { 'a }) -> null | { 'a }<>
+#| tricky::combine : (x: { 'a }, y: null | (v('b) | { 'a })) -> { v1('b)<> | 'a }<>
 #| tricky::combine : (x: null | v('a), y: null | v('a)) -> null | v('a)
 #| tricky::combine : (x: v('a)<`a>, y: null | v('a)) -> v('a)<`a>
 #| tricky::largest : (x: int<`a>) -> INT1<`a>
 #| tricky::largest : (x: dbl<`a> | null) -> dbl1<`a>
 #| tricky::nchars : (xs: {  }) -> empty
 #| tricky::nchars : (xs: { vec }) -> any
-#| tricky::nchars : (xs: vec) -> INT<>
 #| tricky::nchars : (xs: { vec1 }) -> INT<>
+#| tricky::nchars : (xs: vec) -> INT<>
 #| tricky::add : (x: <@"+", ...> & 'a, y: any) -> ((DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) | (LGL<> | <@"+", ...>) & 'a
 #| tricky::add : (x: (dbl1 & v1('b))<~@"+", `a> & 'a, y: (DBL1 & v1('b))<`a>) -> (DBL1 & v1('b))<`a> | ((DBL1 & v1('b))<`a> | (dbl1 & v1('b))<~@"+", `a>) & 'a
 #| tricky::add : (x: dbl1<~@"+", `a> & 'a, y: DBL1<`a>) -> DBL1<`a> | (DBL1<`a> | dbl1<~@"+", `a>) & 'a
@@ -53,13 +53,15 @@
 #| tricky::shout : (s: null | vec) -> CHR<>
 #| tricky::greet : (name: vec1) -> CHR1<>
 #| tricky::greet : (name: null | vec) -> CHR<>
-#| tricky::shout_all : (xs: null) -> CHR<>
 #| tricky::shout_all : (xs: { vec1 }) -> CHR<>
 #| tricky::shout_all : (xs: vec) -> CHR<>
+#| tricky::shout_all : (xs: null) -> CHR<>
 #| tricky::area : (shape: any) -> any
+#| tricky::area.square : (shape: env) -> any
 #| tricky::area.square : (shape: { side: <@"*", ...>, any }) -> (DBL | INT)<difftime> | LGL<>
 #| tricky::area.square : (shape: { side: DBL1<~@"*", `a>, any }) -> DBL1<`a>
 #| tricky::area.square : (shape: { side: dbl1<~@"*", `a>, any }) -> dbl1<`a>
 #| tricky::area.square : (shape: { side: (dbl & v('a))<~@"*", `a> | null, any }) -> (INT | (DBL | INT) & v('a))<`a>
+#| tricky::area.circle : (shape: env) -> any
 #| tricky::area.circle : (shape: { r: dbl1<~@"*", . | `a>, any }) -> DBL1<~@"*", . | `a>
 #| tricky::area.circle : (shape: { r: dbl<~@"*", . | `a> | null, any }) -> (DBL | INT)<~@"*", . | `a>

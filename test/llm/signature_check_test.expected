@@ -100,15 +100,17 @@ inferred: (((x: null) -> "none"<>) & ((x: vec1) -> CHR1<>) & ((x: ~null) -> CHR<
   accepted: (x: null | vec) -> CHR
 
 ===== field_or
-inferred: ∀'a. (((s: { a: 'a \ null, any }) -> 'a) & ((s: { a: null & 'a, any }) -> "none"<>))<>
+inferred: ∀'a. (((s: env) -> any) & ((s: { a: 'a \ null, any }) -> 'a) & ((s: { a: null & 'a, any }) -> "none"<>))<>
 (s: { a: CHR1 | null }) -> CHR1
   accepted: (s: { a: CHR1 | null }) -> CHR1
 (s: { a: CHR1? }) -> CHR1
   rejected: untypeable application of base::$
     argument: @({ a: CHR1? }, "a"<>)
+    failing call: base::$(list(), "a")
 (s: { a: CHR1 | null? }) -> CHR1
   rejected: untypeable application of base::$
     argument: @({ a: (CHR1 | null)? }, "a"<>)
+    failing call: base::$(list(), "a")
 
 ===== [.mybox
 inferred: ∀'a,'b. (((x: v('b), i: CHR | DBL | INT | LGL | RAW) -> v('b)<>) & ((x: { 'a }, i: CHR | DBL | INT | LGL | RAW) -> { 'a }<>))<>
