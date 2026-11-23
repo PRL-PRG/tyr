@@ -1,0 +1,7 @@
+Package: tricky
+Title: Functions That Are Difficult to Check at Run Time
+Version: 0.1.0
+Description: Test cases for the run-time checks of contractr against the
+    types that tyr infers: overloads, results whose type depends on the
+    arguments, and promises that escape the call.
+License: MIT

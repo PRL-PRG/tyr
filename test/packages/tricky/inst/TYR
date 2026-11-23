@@ -1,0 +1,65 @@
+# tyr: inferred types of tricky, for contractr::insert_tyr_contract
+#| tricky::scale2 : (x: <@"*", ...>) -> (DBL | INT)<difftime> | LGL<>
+#| tricky::scale2 : (x: dbl1<~@"*", . | `a>) -> DBL1<~@"*", . | `a>
+#| tricky::scale2 : (x: dbl<~@"*", . | `a>) -> (DBL | INT)<~@"*", . | `a>
+#| tricky::describe : (x: CHR) -> INT<>
+#| tricky::describe : (x: ~CHR) -> INT1<>
+#| tricky::describe : (x: CHR1) -> INT1<>
+#| tricky::fmt : (x: CHR, digits: any) -> CHR<>
+#| tricky::fmt : (x: CHR1, digits: any) -> CHR1<>
+#| tricky::fmt : (x: dbl1<`a>, digits: dbl1) -> dbl1<`a>
+#| tricky::fmt : (x: dbl<`a>, digits: dbl1) -> dbl<`a>
+#| tricky::lookup : (key: vec1) -> ("two"<> | 1L<>) | null
+#| tricky::either : (x: 'b \ null, y: 'a) -> 'b \ null
+#| tricky::either : (x: null & 'b, y: 'a) -> 'a
+#| tricky::combine : (x: null | { 'a }, y: null | { 'a }) -> null | { 'a }<>
+#| tricky::combine : (x: { 'a }, y: null | (v('b) | { 'a })) -> { v1('b)<> | 'a }<>
+#| tricky::combine : (x: null | v('a), y: null | v('a)) -> null | v('a)
+#| tricky::combine : (x: v('a)<`a>, y: null | v('a)) -> v('a)<`a>
+#| tricky::largest : (x: int<`a>) -> INT1<`a>
+#| tricky::largest : (x: dbl<`a> | null) -> dbl1<`a>
+#| tricky::nchars : (xs: {  }) -> empty
+#| tricky::nchars : (xs: { vec }) -> any
+#| tricky::nchars : (xs: { vec1 }) -> INT<>
+#| tricky::nchars : (xs: vec) -> INT<>
+#| tricky::add : (x: <@"+", ...> & 'a, y: any) -> ((DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) | (LGL<> | <@"+", ...>) & 'a
+#| tricky::add : (x: (dbl1 & v1('b))<~@"+", `a> & 'a, y: (DBL1 & v1('b))<`a>) -> (DBL1 & v1('b))<`a> | ((DBL1 & v1('b))<`a> | (dbl1 & v1('b))<~@"+", `a>) & 'a
+#| tricky::add : (x: dbl1<~@"+", `a> & 'a, y: DBL1<`a>) -> DBL1<`a> | (DBL1<`a> | dbl1<~@"+", `a>) & 'a
+#| tricky::add : (x: DBL1<~@"+", `a> & 'a, y: dbl1<`a>) -> DBL1<`a>
+#| tricky::add : (x: (dbl & v('b))<~@"+", `a> & 'a, y: (dbl & v('b))<`a> | null) -> (INT | (DBL | INT) & v('b))<`a> | ((INT | (DBL | INT) & v('b))<`a> | (dbl & v('b))<~@"+", `a>) & 'a
+#| tricky::add : (x: dbl1<~@"+", `a> & 'a, y: dbl1<`a>) -> dbl1<`a>
+#| tricky::pick : (flag: any, a: 'b, b: 'a) -> 'a | 'b
+#| tricky::pick : (flag: ff, a: 'b, b: 'a) -> 'a
+#| tricky::pick : (flag: tt, a: 'b, b: 'a) -> 'b
+#| tricky::make_counter : (start: <@"+", ...>) -> ((by: any?) -> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>)<>
+#| tricky::make_counter : (start: DBL1<~@"+", . | `a>) -> ((by: (dbl1<. | `a>)?) -> DBL1<. | `a>)<>
+#| tricky::make_counter : (start: DBL1<~@"+", . | `a> | (INT1 | dbl1 & v1('a))<~@"+", . | `a>) -> ((by: (DBL1<. | `a> | (INT1 | dbl1 & v1('a))<. | `a>)?) -> DBL1<. | `a> | (INT1 | (DBL1 | INT1) & v1('a))<. | `a>)<>
+#| tricky::make_counter : (start: (INT | dbl & v('a))<~@"+", . | `a>) -> ((by: ((INT | dbl & v('a))<. | `a> | null)?) -> (INT | (DBL | INT) & v('a))<. | `a>)<>
+#| tricky::make_counter : (start: dbl1<~@"+", . | `a>) -> ((by: (dbl1<. | `a>)?) -> dbl1<. | `a>)<>
+#| tricky::make_getter : (x: 'a) -> (() -> 'a)<>
+#| tricky::use_getter : (g: @() -> <@"+", ...>) -> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>
+#| tricky::use_getter : (g: @() -> DBL1<~@"+", . | `a>) -> DBL1<~@"+", . | `a>
+#| tricky::use_getter : (g: @() -> (INT | dbl & v('a))<~@"+", . | `a>) -> (INT | (DBL | INT) & v('a))<~@"+", . | `a>
+#| tricky::use_getter : (g: @() -> DBL1<~@"+", . | `a> | (INT | dbl & v('a))<~@"+", . | `a>) -> DBL1<~@"+", . | `a> | (INT | (DBL | INT) & v('a))<~@"+", . | `a>
+#| tricky::use_getter : (g: @() -> dbl1<~@"+", . | `a>) -> dbl1<~@"+", . | `a>
+#| tricky::use_getter : (g: @() -> (INT | dbl & v('a))<~@"+", . | `a> | dbl1<~@"+", . | `a>) -> (INT | (DBL | INT) & v('a))<~@"+", . | `a> | dbl1<~@"+", . | `a>
+#| tricky::capture : (x: any) -> env
+#| tricky::try_value : (x: 'a, default: 'b) -> 'a | 'b
+#| tricky::retry : (x: 'a) -> 'a
+#| tricky::first_dot : (...: 'a) -> @(...: 'a)
+#| tricky::log_twice : (x: any) -> 0L<>
+#| tricky::label_of : (x: any) -> CHR<>
+#| tricky::shout : (s: vec1) -> CHR1<>
+#| tricky::shout : (s: null | vec) -> CHR<>
+#| tricky::greet : (name: vec1) -> CHR1<>
+#| tricky::greet : (name: null | vec) -> CHR<>
+#| tricky::shout_all : (xs: null) -> CHR<>
+#| tricky::shout_all : (xs: { vec1 }) -> CHR<>
+#| tricky::shout_all : (xs: vec) -> CHR<>
+#| tricky::area : (shape: any) -> any
+#| tricky::area.square : (shape: { side: <@"*", ...>, any }) -> (DBL | INT)<difftime> | LGL<>
+#| tricky::area.square : (shape: { side: DBL1<~@"*", `a>, any }) -> DBL1<`a>
+#| tricky::area.square : (shape: { side: (dbl & v('a))<~@"*", `a>, any }) -> (INT | (DBL | INT) & v('a))<`a>
+#| tricky::area.square : (shape: { side: dbl1<~@"*", `a>, any }) -> dbl1<`a>
+#| tricky::area.circle : (shape: { r: dbl1<~@"*", . | `a>, any }) -> DBL1<~@"*", . | `a>
+#| tricky::area.circle : (shape: { r: dbl<~@"*", . | `a> | null, any }) -> (DBL | INT)<~@"*", . | `a>
