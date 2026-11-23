@@ -17,7 +17,7 @@ failing call: base::regexpr(NA_character_, NA_character_, perl = TRUE)
 
 re_match_all1: (((match: dbl<~factor, ...> with { match.length: dbl<~@"-", ...> |
  null, capture.start: null, capture.length: any, capture.names: null |
- vec, any }, text: vec) -> CHR<> with { dimnames: list?, dim: INT, any }) &
+ vec, any }, text: vec) -> CHR<> with { dim: INT, dimnames: list?, any }) &
  ((match: list<factor, ...> with { match.length: any, capture.start: any, capture.length: any, capture.names: any, any }, text: any)
  -> empty))<>
 

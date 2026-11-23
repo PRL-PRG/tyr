@@ -36,6 +36,9 @@ type options = {
   report : string option ;
   (* Fuzz the inferred types of the package's functions (see {!Fuzz}). *)
   fuzz : Fuzz.options option ;
+  (* Where to write the types of the package's functions as [#|] signatures
+     for contractr (see {!Typedecl}), if anywhere. *)
+  typedecl : string option ;
   (* Which native functions [native.fallback_c_signature] may bind at their
      declared C signature (see [R_c_typing.Runner.fallback_mode]). *)
   fallback_mode : R_c_typing.Runner.fallback_mode ;
@@ -59,6 +62,7 @@ let default_native_options : R_c_typing.Runner.cmd_options = {
 let default_options =
   { native = default_native_options ; prelude = [] ; typeshed = None ; include_dirs = [] ;
     timeout = None ; gradual = false ; deps_only = false ; report = None ; fuzz = None ;
+    typedecl = None ;
     fallback_mode = R_c_typing.Runner.All ; llm = None ; filter = None ; with_callers = false }
 
 (* NativeSem has a per-function timeout of its own, for when it is used as a
@@ -70,12 +74,12 @@ let native_options opts = { opts.native with timeout = None }
 (* ===== Reporting ===== *)
 
 (* The report handle, plus the counters the [summary] record is made of,
-   and, when fuzzing, the typed functions of the package (latest first). *)
+   and, if [collect], the typed functions of the package (latest first). *)
 type rep = { r : Report.t ; stats : (string, int) Hashtbl.t ;
-             fuzzing : bool ; mutable typed : Fuzz.target list }
+             collect : bool ; mutable typed : Fuzz.target list }
 
 let add_typed rep name symbol gty =
-  if rep.fuzzing then rep.typed <- Fuzz.target_of_gty name symbol gty :: rep.typed
+  if rep.collect then rep.typed <- Fuzz.target_of_gty name symbol gty :: rep.typed
 
 let emit rep kind fields = Report.emit rep.r kind fields
 
@@ -1212,7 +1216,7 @@ let run opts root =
   R_c_typing.Runner.fallback_mode := opts.fallback_mode ;
   let module R = Report in
   let rep = { r = R.create opts.report ; stats = Hashtbl.create 32 ;
-              fuzzing = opts.fuzz <> None ; typed = [] } in
+              collect = opts.fuzz <> None || opts.typedecl <> None ; typed = [] } in
   let started = Unix.gettimeofday () in
   let body () =
     let pkg = Pkg.scan root in
@@ -1452,6 +1456,15 @@ let run opts root =
              | Some s, Some nm -> StrSet.mem nm s.r_defs
              | Some _, None -> false))
         |> ignore ;
+        opts.typedecl |> Option.iter (fun file ->
+          let t0 = Unix.gettimeofday () in
+          let written, skipped =
+            Typedecl.write file ~package:(Fuzz.package_name root) (List.rev rep.typed) in
+          Printf.eprintf "tyr: %d function type(s) written to %s, %d skipped\n%!"
+            written file skipped ;
+          emit rep "phase"
+            [ ("name", R.S "typedecl") ; ("elapsed_sec", R.F (Unix.gettimeofday () -. t0)) ;
+              ("count", R.I written) ]) ;
         opts.fuzz |> Option.iter (fun fopts ->
           Format.printf "@.@{<bold>===== Fuzzing =====@}@.@." ;
           let t0 = Unix.gettimeofday () in

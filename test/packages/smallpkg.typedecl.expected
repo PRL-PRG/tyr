@@ -1,0 +1,6 @@
+# tyr: inferred types of smallpkg, for contractr::insert_tyr_contract
+#| smallpkg::tag : (x: 'a) -> 'a
+#| smallpkg::pair_of : (x: <...> | null | p(CHR) | sym, y: <...> | null | p(CHR) | sym) -> lang
+#| smallpkg::first_of : (x: <...> | null | p(CHR) | sym, y: <...> | null | p(CHR) | sym) -> <...> | null | p(CHR) | sym
+#| smallpkg::helper : (x: lang) -> <...> | null | p(CHR) | sym
+#| smallpkg::via_helper : (x: lang) -> <...> | null | p(CHR) | sym

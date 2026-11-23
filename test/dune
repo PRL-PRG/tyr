@@ -223,3 +223,84 @@
  (deps packages/cppglue.expected cppglue.output)
  (action
   (diff packages/cppglue.expected cppglue.output)))
+
+; ===== Types for contractr =====
+; `--typedecl` writes the type of each function as `#|` signatures. contractr
+; sends these signatures to the rstt REPL. The last rule makes sure that rstt
+; reads each signature.
+
+(rule
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  (source_tree packages/smallpkg))
+ (targets smallpkg.typedecl.tyr)
+ (action
+  (ignore-outputs
+   (run %{exe:../bin/main.exe} --typedecl %{targets} packages/smallpkg))))
+
+(rule
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  prelude/base.R
+  (source_tree packages/praise))
+ (targets praise.typedecl.tyr)
+ (action
+  (ignore-outputs
+   (run %{exe:../bin/main.exe} --prelude prelude/base.R --typedecl %{targets}
+    packages/praise))))
+
+(rule
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  prelude/base.R
+  (source_tree packages/rematch))
+ (targets rematch-gradual.typedecl.tyr)
+ (action
+  (ignore-outputs
+   (run %{exe:../bin/main.exe} --gradual --prelude prelude/base.R --typedecl
+    %{targets} packages/rematch))))
+
+; The functions of tricky are difficult to check at run time. contractr reads
+; their types from inst/TYR, thus inst/TYR is also the expected output.
+(rule
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  prelude/base.R
+  (source_tree packages/tricky))
+ (targets tricky.typedecl.tyr)
+ (action
+  (ignore-outputs
+   (run %{exe:../bin/main.exe} --timeout 60 --prelude prelude/base.R
+    --typedecl %{targets} packages/tricky))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff packages/smallpkg.typedecl.expected smallpkg.typedecl.tyr)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff packages/praise.typedecl.expected praise.typedecl.tyr)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff packages/rematch-gradual.typedecl.expected rematch-gradual.typedecl.tyr)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff packages/tricky/inst/TYR tricky.typedecl.tyr)))
+
+(rule
+ (alias runtest)
+ (deps
+  typedecl-roundtrip.sh
+  smallpkg.typedecl.tyr
+  praise.typedecl.tyr
+  rematch-gradual.typedecl.tyr
+  tricky.typedecl.tyr)
+ (action
+  (run bash typedecl-roundtrip.sh %{bin:rstt} smallpkg.typedecl.tyr
+   praise.typedecl.tyr rematch-gradual.typedecl.tyr tricky.typedecl.tyr)))

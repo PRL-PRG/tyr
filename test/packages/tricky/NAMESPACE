@@ -1,0 +1,3 @@
+exportPattern("^[a-z]")
+S3method(area, square)
+S3method(area, circle)
