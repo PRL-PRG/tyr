@@ -12,15 +12,17 @@ _: null
 
 re_match: Untypeable: untypeable application of base::regexpr
 Line 46, characters 11-51
-argument: @('pattern & CHR, CHR<>, perl: tt<>, ...: ('_ell, empty? | `_ell))
+argument: @(CHR & 'pattern, CHR<>, perl: tt<>, ...: ('_ell, empty? | `_ell))
 failing call: base::regexpr(NA_character_, NA_character_, perl = TRUE)
 
-re_match_all1: (((match: dbl<~factor, ...> with { match.length: dbl<~@"-", ...>, capture.start: null, capture.length: any, capture.names: vec
- | null, any }, text: vec) -> CHR<> with { dimnames: list?, dim: INT, any })
- &
+re_match_all1: (((match: dbl<~factor, ...> with { match.length: dbl<~@"-", ...> |
+ null, capture.start: null, capture.length: any, capture.names: null |
+ vec, any }, text: vec) -> CHR<> with { dimnames: list?, dim: INT, any }) &
  ((match: list<factor, ...> with { match.length: any, capture.start: any, capture.length: any, capture.names: any, any }, text: any)
  -> empty))<>
 
-re_match_all: ((pattern: CHR, text: vec | null, ...: any) | (pattern: ~CHR, text: vec |
- null, ...: any) -> list<>)<>
+re_match_all: Untypeable: untypeable application of base::gregexpr
+Line 103, characters 11-52
+argument: @(CHR & 'pattern, CHR<>, perl: tt<>, ...: ('_ell, empty? | `_ell))
+failing call: base::gregexpr(NA_character_, NA_character_, perl = TRUE)
 

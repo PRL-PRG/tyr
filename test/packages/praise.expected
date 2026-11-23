@@ -48,7 +48,7 @@ match_case_sub: (((pattern: vec1, part: vec, replacement: vec1, text: vec) -> CH
 replace_one_template: Untypeable: untypeable application
 Line 89, characters 2-327683
 function: ((pattern: vec1, part: vec, replacement: vec1, text: vec) --> CHR<>) & ((pattern: vec1, part: vec, replacement: vec1, text: vec1) --> CHR1<>)
-argument: @(CHR<>, CHR<>, CHR1, 'template & vec)
+argument: @(CHR<>, CHR<>, CHR1, vec & 'template)
 argument (not in the domain) may be: (NA_character_,
                                       NA_character_,
                                       NA_character_,

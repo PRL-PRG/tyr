@@ -1,0 +1,9 @@
+Package: cppglue
+Version: 0.1
+Title: Routines Exported Through Rcpp
+Description: Test package for the types of the routines of the C++ glue
+    (src/RcppExports.cpp), which src/init.c also declares and registers, and
+    for the C++ headers that the C parser must not read.
+License: GPL-2
+LinkingTo: Rcpp
+Imports: Rcpp

@@ -1,0 +1,27 @@
+
+===== Native code =====
+
+_cppglue_scale_by: [any_sexp, any_sexp] --> any_sexp
+
+_cppglue_all_named: [any_sexp] --> any_sexp
+
+
+===== R code =====
+
+
+===== prelude prelude/base.R =====
+_cppglue_all_named: (x1: any) -> LGL1
+
+_cppglue_scale_by: (x1: clx, x2: clx1) -> DBL
+
+
+===== packages/cppglue/R/cppglue.R =====
+scale_by: ((x: clx, k: clx1) -> DBL)<>
+
+all_named: ((x: any) -> LGL1)<>
+
+"name":"_cppglue_all_named","kind":"function","file":"packages/cppglue/src/RcppExports.cpp","line":22
+"header_kind":"cpp_glue"
+"name":"_cppglue_scale_by","kind":"function","file":"packages/cppglue/src/RcppExports.cpp","line":10
+"header_kind":"cpp_glue"
+"header_kind":"default"

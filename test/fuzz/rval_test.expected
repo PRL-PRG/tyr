@@ -65,7 +65,7 @@ list(1)
 list("a" = 1, "x")
   : { a: 1.<> with {  }, "x"<> with {  } }<> with { names: (CHR & ~vec1)<> with {  } }  (inexact)
 list("a b" = list("c" = NULL))
-  : { a b: { c: null }<> with { names: "c"<> with {  } } }<> with { names: "a b"<> with {  } }
+  : { "a b": { c: null }<> with { names: "c"<> with {  } } }<> with { names: "a b"<> with {  } }
 new.env()
   : env<> with {  }
 as.name("x")
@@ -73,9 +73,9 @@ as.name("x")
 quote(f(x, 1))
   : lang<> with {  }
 function(...) 1
-  : arrow<> with {  }  (inexact)
+  : (empty -> any)<> with {  }  (inexact)
 function(...) stop("fuzz: no value")
-  : arrow<> with {  }  (inexact)
+  : (empty -> any)<> with {  }  (inexact)
 local({ p <- unserialize(serialize(new("externalptr"), NULL)); attributes(p) <- NULL; p })
   : externalptr(empty)<> with {  }  (inexact)
 structure(1L, "levels" = "a", class = "factor")

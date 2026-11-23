@@ -2,7 +2,7 @@ let usage =
   "tyr [--deps] [--gradual] [--debug] [--timeout SECONDS] [--prelude FILE] [--typeshed DIR]\n\
   \      [--report FILE] [--typedecl FILE] [--fallback-c-signature] [--fallback-mode MODE]\n\
   \      [--lambda-rec SECONDS] [--log-times]\n\
-  \      [--call-graph FILE]\n\
+  \      [--call-graph FILE] [--filter NAMES [--with-callers]]\n\
   \      [--fuzz-runner CMD [--fuzz-harness DIR] [--fuzz-samples N] [--fuzz-seed N]\n\
   \       [--fuzz-dir DIR] [--fuzz-call-timeout SECONDS]]\n\
   \      [--llm PROVIDER:MODEL [--llm-context PARTS] [--llm-syntax short|full]\n\
@@ -25,6 +25,8 @@ let log_times = ref false
 let lambda_rec = ref None
 let call_graph = ref None
 let root = ref None
+let filter = ref []
+let with_callers = ref false
 let fuzz_runner = ref None
 (* Next to the binary, as dune lays out its build directory: the image keeps
    that layout. *)
@@ -47,6 +49,16 @@ let llm_effort = ref None
 let llm_thinking_display = ref None
 
 let speclist =
+  [ ("--filter", Arg.String (fun s ->
+        filter := !filter @ (String.split_on_char ',' s |> List.map String.trim
+                             |> List.filter (fun n -> n <> ""))),
+     "NAMES  Only type the functions named and their callees, transitively, \
+      across R and native code. A name can be an R function or a native \
+      function (C name, or the symbol used in .Call); prefix it with r: or c: \
+      to pick one when both exist. Comma-separated; can be repeated") ;
+    ("--with-callers", Arg.Set with_callers,
+     " With --filter, also type the callers of the functions named, \
+      transitively, and their callees") ] @
   [ ("--deps", Arg.Set deps_only,
      "Only report the dependencies between R and native functions") ;
     ("--debug", Arg.Set debug, "Print intermediate information") ;
@@ -124,6 +136,8 @@ let () =
   | None -> prerr_endline usage ; exit 1
   | Some root when not (Sys.file_exists root && Sys.is_directory root) ->
     Printf.eprintf "tyr: not a package directory: %s\n" root ; exit 1
+  | Some _ when !with_callers && !filter = [] ->
+    prerr_endline "tyr: --with-callers needs --filter" ; exit 2
   | Some _ when !gradual && !fuzz_runner <> None ->
     prerr_endline "tyr: --fuzz-runner cannot be used with --gradual (dyn has no values to draw)" ;
     exit 2
@@ -169,4 +183,6 @@ let () =
     Tyr.Pipeline.run
       { native ; prelude = !prelude ; typeshed = !typeshed ; include_dirs = !include_dirs ;
         timeout = !timeout ; gradual = !gradual ; deps_only = !deps_only ;
-        report = !report ; typedecl = !typedecl ; fuzz ; fallback_mode ; llm } root
+        report = !report ; typedecl = !typedecl ; fuzz ; fallback_mode ; llm ;
+        filter = (if !filter = [] then None else Some !filter) ;
+        with_callers = !with_callers } root

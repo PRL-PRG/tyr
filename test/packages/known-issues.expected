@@ -32,7 +32,7 @@ uses_dot_global: (() -> CHR1)<>
 
 uses_dot_machine: (() -> DBL1)<>
 
-powered: ∀`a. (((x: dbl1<. | `a>) -> DBL1<. | `a>) & ((x: dbl<. | `a>) ->
+powered: ∀`a. (((x: dbl1<. | `a>) -> DBL1<. | `a>) & ((x: dbl<. | `a> | null) ->
  DBL<. | `a>))<>
 
 structured: ∀'a,'b. (((x: any) -> any) & ((x: v('b)) -> v('b)) & ((x: { 'a }) ->
@@ -142,13 +142,13 @@ failing call: base::toupper(list())
 
 blame_arity: Untypeable: untypeable application of base::nchar
 Line 165, characters 46-63
-argument: @('x & vec, 'x & vec, 'x & vec, 'x & vec)
+argument: @(vec & 'x, vec & 'x, vec & 'x, vec & 'x)
 failing call: base::nchar(as.raw(0), as.raw(0), as.raw(0), as.raw(0))
 
 cb_ty: Untypeable: untypeable coercion
 Line 176, characters 9-26
 expected: (a: dbl1) --> dbl1
-given: ((a: 'a & <@"+", ...>) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: 'a & dbl1<~@"+", . | `I109>) --> DBL1<~@"+", . | `I109>) & ((a: 'a & ((DBL | dbl & v('I1055))<~@"+", . | `I109> | dbl1<~@"+", . | `I109>)) --> (INT | (DBL | (DBL | INT) & v('I1055)))<~@"+", . | `I109>)
+given: ((a: ((DBL | dbl & v('I1186))<~@"+", . | `I121> | dbl1<~@"+", . | `I121>) & 'a) --> (INT | (DBL | (DBL | INT) & v('I1186)))<~@"+", . | `I121>) & ((a: <@"+", ...> & 'a) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: dbl1<~@"+", . | `I121> & 'a) --> DBL1<~@"+", . | `I121>)
 expression may be: <fun>
 
 cb_sig: Untypeable: untypeable coercion

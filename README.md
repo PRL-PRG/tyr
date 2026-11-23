@@ -83,6 +83,17 @@ dune exec tyr -- --gradual path/to/package
 # Also write a machine-readable account of the run, one JSON record per line
 dune exec tyr -- --report run.jsonl path/to/package
 
+# Only type the functions named and their callees, transitively, across R
+# and native code. A name can be an R function or a native function (C name,
+# or the symbol used in .Call); without a prefix, it names both when both
+# exist, and r: or c: picks one. Names are comma-separated, and --filter can
+# be repeated
+dune exec tyr -- --filter vec_cast,c:vec_proxy_equal path/to/vctrs
+
+# The same, and also the callers of the functions named, transitively, with
+# their callees
+dune exec tyr -- --filter c:vec_proxy_equal --with-callers path/to/vctrs
+
 # NativeSem options passed through: bind a C function that fails to type at
 # its declared signature; print its per-function timings; dump its call graph
 dune exec tyr -- --fallback-c-signature --log-times --call-graph cg.dot path/to/package

@@ -19,6 +19,44 @@
  (action
   (diff packages/smallpkg.expected smallpkg.output)))
 
+; --filter: via_helper and its callees (helper, then the native function
+; first), and the native function make_pair alone. c:helper names no native
+; function (helper is an R function): a warning.
+(rule
+ (alias runtest)
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  (source_tree packages/smallpkg))
+ (action
+  (with-stdout-to
+   smallpkg-filter.output
+   (run %{exe:../bin/main.exe} --filter via_helper,make_pair --filter c:helper packages/smallpkg))))
+
+(rule
+ (alias runtest)
+ (deps packages/smallpkg-filter.expected smallpkg-filter.output)
+ (action
+  (diff packages/smallpkg-filter.expected smallpkg-filter.output)))
+
+; --with-callers: the native function make_pair, its callers (pair_of, then
+; first_of, which calls pair_of) and their callees (tag, the native function
+; first). Not via_helper nor helper.
+(rule
+ (alias runtest)
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  (source_tree packages/smallpkg))
+ (action
+  (with-stdout-to
+   smallpkg-callers.output
+   (run %{exe:../bin/main.exe} --filter make_pair --with-callers packages/smallpkg))))
+
+(rule
+ (alias runtest)
+ (deps packages/smallpkg-callers.expected smallpkg-callers.output)
+ (action
+  (diff packages/smallpkg-callers.expected smallpkg-callers.output)))
+
 ; ===== R packages =====
 ; Real CRAN packages (and one synthetic package of minimal reproductions),
 ; type-checked against the base R signatures of `prelude/base.R`. See
@@ -161,6 +199,30 @@
  (deps packages/known-issues.expected known-issues.output)
  (action
   (diff packages/known-issues.expected known-issues.output)))
+
+; Routines exported through Rcpp: typed from the C++ glue
+; (src/RcppExports.cpp), although src/init.c declares them at SEXP types; the
+; C++-only header src/scaler.h is not parsed. The report lists the routines
+; as native functions (header_kind cpp_glue).
+(rule
+ (alias runtest)
+ (deps
+  (glob_files %{project_root}/types/*.ty)
+  prelude/base.R
+  (source_tree packages/cppglue))
+ (action
+  (with-stdout-to
+   cppglue.output
+   (progn
+    (run %{exe:../bin/main.exe} --prelude prelude/base.R --report cppglue.jsonl
+      packages/cppglue)
+    (run grep -o "\"name\":\"[^\"]*\",\"kind\":\"function\",\"file\":\"[^\"]*\",\"line\":[0-9]*\\|\"header_kind\":\"[a-z_]*\"" cppglue.jsonl)))))
+
+(rule
+ (alias runtest)
+ (deps packages/cppglue.expected cppglue.output)
+ (action
+  (diff packages/cppglue.expected cppglue.output)))
 
 ; ===== Types for contractr =====
 ; `--typedecl` writes the type of each function as `#|` signatures. contractr
