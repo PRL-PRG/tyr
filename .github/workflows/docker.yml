@@ -51,6 +51,13 @@ jobs:
           if [ "${{ github.event.inputs.pinned }}" = "true" ]; then
             echo "pinned=true" >> "$GITHUB_OUTPUT"
           else
+            # The checkout's submodules are shallow, hence single-branch: only
+            # their default branch is fetched. Fetch the branch .gitmodules
+            # declares (contractr's `tyr` is not its default).
+            git submodule foreach --quiet '
+              b=$(git config -f "$toplevel/.gitmodules" "submodule.$name.branch" || echo HEAD)
+              git config remote.origin.fetch "+refs/heads/$b:refs/remotes/origin/$b"
+            '
             git submodule update --remote --recursive
             echo "pinned=false" >> "$GITHUB_OUTPUT"
           fi
