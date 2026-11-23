@@ -42,6 +42,11 @@ type options = {
   (* Ask a language model for the R definitions inference fails on (see
      {!Llm_fallback}). *)
   llm : Llm_fallback.config option ;
+  (* Only type these functions and their callees (see [select]). [None]:
+     type everything. *)
+  filter : string list option ;
+  (* With [filter], also type the callers of the functions named. *)
+  with_callers : bool ;
 }
 
 let default_native_options : R_c_typing.Runner.cmd_options = {
@@ -54,7 +59,7 @@ let default_native_options : R_c_typing.Runner.cmd_options = {
 let default_options =
   { native = default_native_options ; prelude = [] ; typeshed = None ; include_dirs = [] ;
     timeout = None ; gradual = false ; deps_only = false ; report = None ; fuzz = None ;
-    fallback_mode = R_c_typing.Runner.All ; llm = None }
+    fallback_mode = R_c_typing.Runner.All ; llm = None ; filter = None ; with_callers = false }
 
 (* NativeSem has a per-function timeout of its own, for when it is used as a
    standalone CLI. Driven from here the policy comes from [Timeout.guard]
@@ -822,7 +827,74 @@ let report_cpp_glue rep (pkg : Pkg.t) conventions glue =
         ("elapsed_sec", R.N) ] ;
     bump rep "native_n_typed")
 
-let run_native opts rep (pkg : Pkg.t) entry_points =
+(* ===== [--filter] ===== *)
+
+(* The functions [--filter] keeps: R functions, and native functions by their
+   C name. [unknown]: the names that match no function. *)
+type selection = { r_defs : StrSet.t ; c_names : StrSet.t ; unknown : string list }
+
+(* A node of the call graph of the package: an R function or a native
+   function (C name). *)
+type node = R of string | C of string
+
+(* The functions [--filter names] keeps: the functions named and their
+   callees, transitively, across R and native code. With [with_callers], also
+   the callers of the functions named, transitively, and their callees.
+
+   An R function calls the R functions it uses and the native functions it
+   reaches with [.Call] and the like; a native function calls the native
+   functions it uses ([c_defs]). A name can be prefixed with [r:] (an R
+   function) or [c:] (a native function, by its C name or by the symbol used
+   in [.Call]); without a prefix, it names both when both exist. *)
+let select (pkg : Pkg.t) files (c_defs : C_deps.fundef list) ~with_callers names =
+  let defs = List.concat_map (fun f -> f.defs) files in
+  let c_name (n : R_deps.native_call) = Pkg.native_symbol pkg n.convention n.symbol in
+  let r_defs = Hashtbl.create 64 in
+  List.iter (fun (d : R_deps.def) -> Option.iter (fun nm -> Hashtbl.add r_defs nm d) d.name) defs ;
+  let c_calls = Hashtbl.create 64 in
+  List.iter (fun (d : C_deps.fundef) -> Hashtbl.add c_calls d.name d.calls) c_defs ;
+  (* The C names of the native functions reached with a symbol. *)
+  let symbols = Hashtbl.create 64 in
+  defs |> List.iter (fun (d : R_deps.def) ->
+    d.natives |> List.iter (fun (n : R_deps.native_call) -> Hashtbl.replace symbols n.symbol (c_name n))) ;
+  let callees = function
+    | R nm ->
+      Hashtbl.find_all r_defs nm |> List.concat_map (fun (d : R_deps.def) ->
+        (StrSet.elements d.uses |> List.filter (Hashtbl.mem r_defs) |> List.map (fun m -> R m))
+        @ List.map (fun n -> C (c_name n)) d.natives)
+    | C nm -> Hashtbl.find_all c_calls nm |> List.concat |> List.map (fun m -> C m) in
+  let named nm =
+    let side, nm =
+      match String.index_opt nm ':' with
+      | Some 1 when nm.[0] = 'r' -> (`R, String.sub nm 2 (String.length nm - 2))
+      | Some 1 when nm.[0] = 'c' -> (`C, String.sub nm 2 (String.length nm - 2))
+      | _ -> (`Both, nm) in
+    (if side <> `C && Hashtbl.mem r_defs nm then [ R nm ] else [])
+    @ (if side <> `R && Hashtbl.mem c_calls nm then [ C nm ] else [])
+    @ (match Hashtbl.find_opt symbols nm with
+       | Some c when side <> `R && c <> nm -> [ C c ]
+       | _ -> []) in
+  let closure next start =
+    let seen = Hashtbl.create 64 in
+    let rec visit n =
+      if not (Hashtbl.mem seen n) then (Hashtbl.add seen n () ; List.iter visit (next n)) in
+    List.iter visit start ;
+    Hashtbl.fold (fun n () acc -> n :: acc) seen [] in
+  let start = List.concat_map named names in
+  let start =
+    if not with_callers then start else begin
+      let callers = Hashtbl.create 64 in
+      let add n = List.iter (fun m -> Hashtbl.add callers m n) (callees n) in
+      Hashtbl.iter (fun nm _ -> add (R nm)) r_defs ;
+      Hashtbl.iter (fun nm _ -> add (C nm)) c_calls ;
+      closure (Hashtbl.find_all callers) start
+    end in
+  let kept = closure callees start in
+  { r_defs = List.filter_map (function R nm -> Some nm | C _ -> None) kept |> StrSet.of_list ;
+    c_names = List.filter_map (function C nm -> Some nm | R _ -> None) kept |> StrSet.of_list ;
+    unknown = List.filter (fun nm -> named nm = []) names }
+
+let run_native ?filter opts rep (pkg : Pkg.t) ~files entry_points =
   let module R = Report in
   let module Rn = R_c_typing.Runner in
   Mlsem.System.Config.infer_overload := true ;
@@ -833,7 +905,10 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
   (* Printing a type reads the type aliases, through [PEnv]. *)
   ignore (Mlsem.Types.PEnv.sequential_handler (R_c_typing.Defs.parsed_types_penv ())
             (fun () -> report_cpp_glue rep pkg conventions glue) ()) ;
-  if pkg.c_files = [] then (glue_ty, R_c_typing.Defs.parsed_types_penv ())
+  (* The selection of [--filter], once the native functions are known. *)
+  let select c_defs =
+    Option.map (fun (names, with_callers) -> select pkg files c_defs ~with_callers names) filter in
+  if pkg.c_files = [] then (glue_ty, R_c_typing.Defs.parsed_types_penv (), select [])
   else
     let module Runner = R_c_typing.Runner in
     let module PAst = R_c_typing.PAst in
@@ -894,6 +969,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
       if kind = "function" then bump rep ("native_n_" ^ status)
       end
     in
+    let selection = ref None in
     let run () =
       let t0 = Unix.gettimeofday () in
       let pasts = Runner.parse_files opts_native pkg.c_files in
@@ -1004,9 +1080,13 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
       (* The function definitions, callees first, restricted to what the entry
          points reach. *)
       let fun_names = C_deps.fun_names pasts in
+      let c_defs = C_deps.fundefs ~fun_names pasts in
+      let sel = select c_defs in
+      selection := sel ;
       let defs =
-        C_deps.fundefs ~fun_names pasts
-        |> C_deps.reachable ~roots:(List.map fst entry_points)
+        match sel with
+        | Some s -> List.filter (fun (d : C_deps.fundef) -> StrSet.mem d.name s.c_names) c_defs
+        | None -> C_deps.reachable ~roots:(List.map fst entry_points) c_defs
       in
       let groups = schedule defs in
       let ordered = List.concat_map snd groups in
@@ -1084,7 +1164,7 @@ let run_native opts rep (pkg : Pkg.t) entry_points =
             try Some (R_c_typing.C_interface.dotC_of_arg_types arg_types)
             with Failure _ -> None)
     in
-    (lookup, penv)
+    (lookup, penv, !selection)
 
 (* ===== Pipeline ===== *)
 
@@ -1156,6 +1236,8 @@ let run opts root =
                                  | R_c_typing.Runner.All -> "all"
                                  | R_c_typing.Runner.Except_all_sexp -> "except-all-sexp")) ;
         ("log_times", R.B opts.native.log_times) ; ("prefix", R.S pkg.prefix) ;
+        ("filter", (match opts.filter with Some l -> R.L l | None -> R.N)) ;
+        ("with_callers", R.B opts.with_callers) ;
         ("n_r_files", R.I (List.length pkg.r_files)) ;
         ("n_c_files", R.I (List.length pkg.c_files)) ;
         ("prov_tyr", prov "TYR_SHA") ; ("prov_rsem", prov "RSEM_SHA") ;
@@ -1206,7 +1288,18 @@ let run opts root =
         [ ("name", R.S "load_ty") ; ("elapsed_sec", R.F !R_c_typing.Defs.ty_load_time) ] ;
 
       Format.printf "@.@{<bold>===== Native code =====@}@.@." ;
-      let native_ty, penv = run_native opts rep pkg entry_points in
+      let filter = Option.map (fun names -> (names, opts.with_callers)) opts.filter in
+      let native_ty, penv, selection = run_native ?filter opts rep pkg ~files entry_points in
+      selection |> Option.iter (fun s ->
+        s.unknown |> List.iter (fun nm ->
+          Format.printf "tyr: --filter: no R or native function named %s@.@." nm)) ;
+      (* The native functions the R code can call. With [--filter], only the
+         ones it keeps. *)
+      let linked = match selection with
+        | None -> natives
+        | Some s ->
+          StrMap.filter (fun r_name conv ->
+              StrSet.mem (Pkg.native_symbol pkg conv r_name) s.c_names) natives in
 
       Format.printf "@.@{<bold>===== R code =====@}@.@." ;
       (* Everything below prints types, which needs the printing environment the
@@ -1309,7 +1402,7 @@ let run opts root =
                 add_typed rep r_name (Some c_name) gty ;
                 Format.printf "%s: @[%a@]@.@." r_name Mlsem.Types.GTy.pp gty ;
                 (Driver.bind ctx r_name gty, StrSet.add r_name known, dotcode))
-            natives (ctx, StrSet.empty, StrMap.empty)
+            linked (ctx, StrSet.empty, StrMap.empty)
         in
         let known n = StrSet.mem n known in
         let dotcode n = StrMap.find_opt n dotcode in
@@ -1352,7 +1445,12 @@ let run opts root =
             | Some r -> r
             | None -> let r = ref [] in Hashtbl.add typed_here f.path r ; r in
           process ~mode:(`Items ([ item ], here)) ctx f)
-          { ctx with Driver.lannots = [] } (order_items files)
+          { ctx with Driver.lannots = [] }
+          (order_items files |> List.filter (fun (_, (_, (d : R_deps.def))) ->
+             match selection, d.name with
+             | None, _ -> true
+             | Some s, Some nm -> StrSet.mem nm s.r_defs
+             | Some _, None -> false))
         |> ignore ;
         opts.fuzz |> Option.iter (fun fopts ->
           Format.printf "@.@{<bold>===== Fuzzing =====@}@.@." ;

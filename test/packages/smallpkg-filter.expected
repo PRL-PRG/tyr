@@ -1,0 +1,22 @@
+
+===== Native code =====
+
+make_pair: [any_sexp, any_sexp] -> lang
+
+first: [lang] -> any_sexp
+
+tyr: --filter: no R or native function named c:helper
+
+
+===== R code =====
+
+C_first: (x1: lang) -> any_sexp
+
+C_make_pair: (x1: any_sexp, x2: any_sexp) -> lang
+
+
+===== packages/smallpkg/R/a_main.R =====
+helper: ((x: lang) -> any_sexp)<>
+
+via_helper: ((x: lang) -> any_sexp)<>
+
