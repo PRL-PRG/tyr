@@ -169,13 +169,15 @@
   prelude/base.R
   (source_tree packages/prettyunits))
  ; pretty_p_value takes exponential time to fail since the prelude declares
- ; is.numeric (about 60 s), hence a long timeout. It is longer than the
+ ; is.numeric (about 80 s), hence a long timeout. It is longer than the
  ; dashboard's (r-typing's FUN_TIMEOUT, 20 s): pretty_round and pretty_signif
- ; take 10-12 s on a fast machine, and more than 20 s on a GitHub runner.
+ ; take 10-12 s on a fast machine, and more than 20 s on a GitHub runner. With
+ ; 90 s, pretty_p_value failed on some machines and timed out on others: the
+ ; limit is far enough above its time that it always fails.
  (action
   (with-stdout-to
    prettyunits.output
-   (run %{exe:../bin/main.exe} --timeout 90 --prelude prelude/base.R packages/prettyunits))))
+   (run %{exe:../bin/main.exe} --timeout 240 --prelude prelude/base.R packages/prettyunits))))
 
 (rule
  (alias runtest)

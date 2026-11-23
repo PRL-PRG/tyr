@@ -84,8 +84,12 @@ let lines ~package name gty =
   | Some spelled ->
     match Mlsem.Types.Arrow.dnf content with
     | [ arrows ] ->
-      (* Arrows that differ only in their variables give the same text. *)
-      (match Fuzz.dedup Fun.id (List.concat_map signatures arrows) with
+      (* Arrows that differ only in their variables give the same text. The
+         order of [arrows] is that of mlsem's representation of the type, which
+         varies from one machine to another: the signatures are sorted, so
+         that the file is the same everywhere (an intersection does not depend
+         on the order of its arrows). *)
+      (match List.sort_uniq String.compare (List.concat_map signatures arrows) with
        | exception Skip reason -> Error reason
        | sigs ->
          match List.find_opt (fun s -> not (reads_back ~package spelled s)) sigs with
