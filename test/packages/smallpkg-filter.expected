@@ -10,13 +10,13 @@ tyr: --filter: no R or native function named c:helper
 
 ===== R code =====
 
-C_first: (x1: lang) -> any_sexp
+C_first: (x1: lang) -> any
 
 C_make_pair: (x1: any, x2: any) -> lang
 
 
 ===== packages/smallpkg/R/a_main.R =====
-helper: ((x: lang) -> any_sexp)<>
+helper: ((x: lang) -> any)<>
 
-via_helper: ((x: lang) -> any_sexp)<>
+via_helper: ((x: lang) -> any)<>
 
