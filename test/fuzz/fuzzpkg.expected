@@ -10,16 +10,18 @@
 ===== prelude wrong_sig.R =====
 
 ===== fuzzpkg/R/fuzzpkg.R =====
-parse_int: ((x: CHR) -> CHR)<> with {  }
+parse_int: ((x: CHR) -> CHR)<>
 
-count_chars: (((x: vec) -> INT<>) & ((x: vec1) -> INT1<>))<> with {  }
+count_chars: (((x: vec) -> INT<>) & ((x: vec1) -> INT1<>))<>
 
-first_char: (((x: vec) -> CHR<>) & ((x: vec1) -> CHR1<>))<> with {  }
+first_char: (((x: vec) -> CHR<>) & ((x: vec1) -> CHR1<>))<>
 
-checked: (((n: DBL | INT) -> DBL | INT) & ((n: DBL1 | INT1) -> DBL1) & ((n: ~(DBL |
- INT)) -> empty))<> with {  }
+checked: ∀`a. (((n: (DBL | INT)<~@"+", . | `a>) -> (DBL | INT)<~@"+", . | `a>) &
+ ((n: DBL1<~@"+", . | `a> | INT1<~@"+", . | `a>) -> DBL1<~@"+", . | `a>) &
+ ((n: DBL<@"+", ...> | INT<@"+", ...>) -> (DBL | INT)<difftime> | LGL<> |
+ dbl<Date, ...> | <POSIXt, ...>) & ((n: ~(DBL | INT)) -> empty))<>
 
-first_of: ∀'a. ((x: 'a, y: any) -> 'a)<> with {  }
+first_of: ∀'a. ((x: 'a, y: any) -> 'a)<>
 
 
 ===== Fuzzing =====
@@ -31,6 +33,6 @@ count_chars: ok 8, rejected 3, accepted 2
   accepted: list(list(c(FALSE, FALSE, NA, NA, TRUE))) x wrap, returned 29L<> with {  }
 first_char: ok 8, rejected 3, accepted 1
   accepted: list("x" = list()) x kind:list, returned (CHR & ~vec1)<> with {  }
-checked: ok 8, rejected 3
+checked: ok 14, rejected 8 (calls for 3 of the 4 arrows)
 first_of: ok 20, rejected 6, accepted 2
   accepted: list("x" = 2L) y drop, returned 2L<> with {  }
