@@ -1,7 +1,7 @@
 let usage =
   "tyr [--deps] [--gradual] [--debug] [--timeout SECONDS] [--prelude FILE] [--typeshed DIR]\n\
   \      [--report FILE] [--typedecl FILE] [--fallback-c-signature] [--fallback-mode MODE]\n\
-  \      [--lambda-rec SECONDS] [--log-times]\n\
+  \      [--lambda-rec SECONDS] [--log-times] [--allow-charsxp]\n\
   \      [--call-graph FILE] [--filter NAMES [--with-callers]]\n\
   \      [--fuzz-runner CMD [--fuzz-harness DIR] [--fuzz-samples N] [--fuzz-seed N]\n\
   \       [--fuzz-dir DIR] [--fuzz-call-timeout SECONDS]]\n\
@@ -27,6 +27,7 @@ let call_graph = ref None
 let root = ref None
 let filter = ref []
 let with_callers = ref false
+let allow_charsxp = ref false
 let fuzz_runner = ref None
 (* Next to the binary, as dune lays out its build directory: the image keeps
    that layout. *)
@@ -82,6 +83,10 @@ let speclist =
      " Which functions --fallback-c-signature applies to: all of them (the default), \
       all but those whose parameters and result are all SEXP, or none. Implies \
       --fallback-c-signature, but for none") ;
+    ("--allow-charsxp", Arg.Set allow_charsxp,
+     " Bind a native routine whose parameter or result can only be a CHARSXP \
+      (p(CHR), which R code cannot pass or get), keeping the p(CHR); without it, \
+      the routine is not bound. Both warn") ;
     ("--lambda-rec", Arg.Float (fun f -> lambda_rec := Some f),
      "SECONDS  Also type recursive native functions as recursive groups, within that time") ;
     ("--log-times", Arg.Set log_times,
@@ -185,4 +190,4 @@ let () =
         timeout = !timeout ; gradual = !gradual ; deps_only = !deps_only ;
         report = !report ; typedecl = !typedecl ; fuzz ; fallback_mode ; llm ;
         filter = (if !filter = [] then None else Some !filter) ;
-        with_callers = !with_callers } root
+        with_callers = !with_callers ; allow_charsxp = !allow_charsxp } root

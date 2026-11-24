@@ -16,10 +16,10 @@ count_na: [DBL] -> INT1<> with {  }
 ===== prelude prelude/base.R =====
 C_count_na: (x1: DBL) -> INT1<> with {  }
 
-C_scale_by: ((x1: DBL, x2: any_sexp) -> DBL<> with {  }) &
-            ((x1: DBL1, x2: any_sexp) -> DBL1<> with {  })
+C_scale_by: ((x1: DBL, x2: any) -> DBL<> with {  }) & ((x1: DBL1, x2: any) ->
+            DBL1<> with {  })
 
-C_with_unit: (x1: any_sexp, x2: any_sexp & 'I72) ->
+C_with_unit: (x1: any, x2: 'I72 & (<...> | null | sym)) ->
              <measure> with { unit: <...> | any_sexp & 'I72, any }
 
 
@@ -46,10 +46,10 @@ describe.default: ((x: dbl, ...: any) -> CHR1<>)<>
 
 
 ===== packages/mixpkg/R/natives.R =====
-scale_by: (((x: null | vec, k: any_sexp?) -> DBL<> with {  }) &
- ((x: vec1, k: any_sexp?) -> DBL1<> with {  }))<>
+scale_by: (((x: null | vec, k: any?) -> DBL<> with {  }) & ((x: vec1, k: any?) ->
+ DBL1<> with {  }))<>
 
-measure: ∀'a. ((x: null | vec, unit: (any_sexp & 'a)?) ->
+measure: ∀'a. ((x: null | vec, unit: ('a & (<...> | null | sym))?) ->
  <measure> with { unit: <...> | any_sexp & 'a, any })<>
 
 count_missing: ((x: null | vec) -> INT1<> with {  })<>

@@ -50,6 +50,10 @@ type options = {
   filter : string list option ;
   (* With [filter], also type the callers of the functions named. *)
   with_callers : bool ;
+  (* Bind a native routine with a parameter or a result that can only be a
+     CHARSXP, keeping its [p(CHR)] (cf. [Link.charsxp_positions]); it is not
+     bound otherwise. Both warn. *)
+  allow_charsxp : bool ;
 }
 
 let default_native_options : R_c_typing.Runner.cmd_options = {
@@ -63,7 +67,8 @@ let default_options =
   { native = default_native_options ; prelude = [] ; typeshed = None ; include_dirs = [] ;
     timeout = None ; gradual = false ; deps_only = false ; report = None ; fuzz = None ;
     typedecl = None ;
-    fallback_mode = R_c_typing.Runner.All ; llm = None ; filter = None ; with_callers = false }
+    fallback_mode = R_c_typing.Runner.All ; llm = None ; filter = None ; with_callers = false ;
+    allow_charsxp = false }
 
 (* NativeSem has a per-function timeout of its own, for when it is used as a
    standalone CLI. Driven from here the policy comes from [Timeout.guard]
@@ -1380,10 +1385,20 @@ let run opts root =
                  Format.printf "%s: %s@.@." r_name (r_type d) ;
                  (ctx, known, StrMap.add r_name d dotcode))
             | R_c_typing.Package.Call | R_c_typing.Package.External ->
+              let charsxp = match native with
+                | Some ty -> Link.charsxp_positions ty | None -> [] in
               let result =
                 match native with
                 | None -> Error Link.No_native_type
-                | Some ty -> Link.r_type_of_native' ty in
+                | Some ty -> Link.r_type_of_native' ~allow_charsxp:opts.allow_charsxp ty in
+              (* A parameter or result that can only be a CHARSXP, which R code
+                 cannot pass or get: the routine was perhaps written for them
+                 on purpose, and its R binding would be wrong either way. *)
+              if charsxp <> [] then
+                Printf.eprintf "tyr: warning: %s (%s): %s can only be a CHARSXP; %s\n%!"
+                  r_name c_name (String.concat ", " charsxp)
+                  (if opts.allow_charsxp then "bound with p(CHR) (--allow-charsxp)"
+                   else "not bound (--allow-charsxp binds it)") ;
               let r_printed = Result.to_option result |> Option.map pp_ty in
               emit rep "link"
                 [ ("r_name", R.S r_name) ; ("symbol", R.S c_name) ;
@@ -1392,6 +1407,7 @@ let run opts root =
                   ("convertible", R.B (Result.is_ok result)) ;
                   ("reject_reason",
                    (match result with Error r -> R.S (Link.string_of_reject r) | Ok _ -> R.N)) ;
+                  ("charsxp", R.L charsxp) ;
                   ("bound", R.B (Result.is_ok result)) ;
                   ("r_type", (match r_printed with Some p -> R.S p | None -> R.N)) ;
                   ("degenerate", R.B (match result with Ok ty -> R.degenerate ty | Error _ -> false)) ;

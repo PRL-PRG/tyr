@@ -10,7 +10,7 @@ first: [lang] -> any_sexp
 
 C_first: (x1: lang) -> any_sexp
 
-C_make_pair: (x1: any_sexp, x2: any_sexp) -> lang
+C_make_pair: (x1: any, x2: any) -> lang
 
 
 ===== packages/smallpkg/R/z_utils.R =====
@@ -18,9 +18,9 @@ tag: ∀'a. ((x: 'a) -> 'a)<>
 
 
 ===== packages/smallpkg/R/a_main.R =====
-pair_of: ((x: any_sexp, y: any_sexp) -> lang)<>
+pair_of: ((x: any, y: any) -> lang)<>
 
-first_of: ((x: any_sexp, y: any_sexp) -> any_sexp)<>
+first_of: ((x: any, y: any) -> any_sexp)<>
 
 helper: ((x: lang) -> any_sexp)<>
 

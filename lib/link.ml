@@ -17,11 +17,41 @@ module StrMap = Map.Make(String)
 let field ty = Rstt.(Ty.O.required ty |> Ty.F.mk_descr)
 let absent = Rstt.(Ty.F.mk_descr Ty.O.absent)
 
+(* The values R code can pass to a native routine, or get back from one:
+   NativeSem's [any_sexp] without its CHARSXPs ([p(CHR)]), which only exist
+   inside character vectors. *)
+let r_values = Ty.disj Rstt.[ Attr.any ; Null.any ; Sym.any ]
+let charsxp = Rstt.Prim.(mk Chr.any)
+
+(* A type of the C side that R cannot have a value of, though C code can:
+   only CHARSXPs. A routine with such a parameter or result was perhaps
+   written for CHARSXPs on purpose; R code still cannot pass or receive one. *)
+let charsxp_only ty =
+  not (Ty.is_empty (Ty.cap ty charsxp)) && Ty.is_empty (Ty.cap ty r_values)
+
+(* The type of a parameter on the R side, from its type on the C side: only
+   R values can reach it, so a C type that takes them all (e.g. [any_sexp])
+   is [any], and any other keeps only the R values it has (dropping
+   [p(CHR)]). A parameter that only takes CHARSXPs is kept as it is: it is
+   only converted with [allow_charsxp] (cf. [charsxp_positions]). *)
+let r_param_of_c ty =
+  if Ty.leq r_values ty then Ty.any
+  else if charsxp_only ty then ty
+  else Ty.cap ty r_values
+
+(* The type of a result on the R side: the C one without its CHARSXPs, unless
+   it is only CHARSXPs; [any] when that is any R value (e.g. [any_sexp]). *)
+let r_result_of_c ty =
+  if charsxp_only ty then ty
+  else
+    let ty = Ty.diff ty charsxp in
+    if Ty.leq r_values ty then Ty.any else ty
+
 (* [x1: T1, ..., xn: Tn] as a definition-site R argument: exactly [n]
    positional parameters, no [...]. *)
 let arg_of_components tys =
   Rstt.Arg.mk
-    { pos_named = List.mapi (fun i ty -> (Printf.sprintf "x%d" (i + 1), field ty)) tys ;
+    { pos_named = List.mapi (fun i ty -> (Printf.sprintf "x%d" (i + 1), field (r_param_of_c ty))) tys ;
       pos_tl = absent ; named = [] ; named_tl = absent }
 
 (* The R argument type matching a C argument tuple. A domain that is a union of
@@ -32,6 +62,40 @@ let arg_of_tuple dom =
   comps
   |> List.concat_map (fun (_arity, lines) -> List.map arg_of_components lines)
   |> Ty.disj
+
+(* The arrows of a native routine's type, without its R attributes. *)
+let native_arrows ty =
+  (* A routine inferred from its body carries R attributes ([... -> ...]);
+     one typed from its C signature does not ([... --> ...]). *)
+  if Ty.leq ty (Rstt.Attr.any) then Rstt.Attr.proj_content ty else ty
+
+(* Where the type of a routine has a parameter or a result that can only be
+   a CHARSXP ([charsxp_only]) over all its arrows: ["argument 2"],
+   ["result"], ... An arrow of which only a parameter is CHARSXPs, next to
+   arrows for R values, is not counted: it is the part of an [any_sexp] R
+   code cannot reach, and [r_type_of_native'] drops it. *)
+let charsxp_positions ty =
+  let content = native_arrows ty in
+  if Ty.is_empty content || not (Ty.leq content Arrow.any) then []
+  else
+    let arrows = List.concat (Arrow.dnf content) in
+    let lines dom = let comps, _ = Tuple.decompose dom in List.concat_map snd comps in
+    let params = Hashtbl.create 8 in
+    arrows |> List.iter (fun (dom, _) ->
+      lines dom |> List.iter (List.iteri (fun i ty ->
+        let prev = Option.value (Hashtbl.find_opt params i) ~default:Ty.empty in
+        Hashtbl.replace params i (Ty.cup prev ty)))) ;
+    let args =
+      Hashtbl.fold (fun i ty acc -> if charsxp_only ty then i :: acc else acc) params []
+      |> List.sort compare |> List.map (fun i -> Printf.sprintf "argument %d" (i + 1)) in
+    let result = Ty.disj (List.map snd arrows) in
+    args @ (if charsxp_only result then [ "result" ] else [])
+
+(* An arrow one of whose parameters only takes CHARSXPs: R code cannot call
+   it. *)
+let charsxp_arrow (dom, _) =
+  let comps, _ = Tuple.decompose dom in
+  List.concat_map snd comps |> List.exists (List.exists charsxp_only)
 
 let fun_ty = Arrow.any |> Rstt.Attr.mk_content
 
@@ -44,6 +108,8 @@ type reject =
   | Empty_after_conversion  (* every arrow's domain had no R counterpart *)
   | Not_a_dotcode_routine   (* [.C]/[.Fortran]: not a single arrow over the
                                pointers they pass (cf. [dotcode_kinds_of_native]) *)
+  | Charsxp_only            (* a parameter or the result can only be a CHARSXP,
+                               and [allow_charsxp] is off (cf. [charsxp_positions]) *)
 
 let string_of_reject = function
   | No_native_type -> "no native type"
@@ -51,26 +117,34 @@ let string_of_reject = function
   | Not_a_function -> "not a function type"
   | Empty_after_conversion -> "empty after conversion"
   | Not_a_dotcode_routine -> "not a .C routine"
+  | Charsxp_only -> "CHARSXP only"
 
 (* [r_type_of_native' ty] is the type of the R binding that stands for a native
-   routine whose inferred type is [ty], or the reason there is none. *)
-let r_type_of_native' ty =
-  (* A routine inferred from its body carries R attributes ([... -> ...]);
-     one typed from its C signature does not ([... --> ...]). *)
-  let content =
-    if Ty.leq ty (Rstt.Attr.any) then Rstt.Attr.proj_content ty else ty in
+   routine whose inferred type is [ty], or the reason there is none. A routine
+   with a parameter or a result that can only be a CHARSXP is not bound, unless
+   [allow_charsxp]: then these keep their [p(CHR)] (the caller warns, cf.
+   [charsxp_positions]). *)
+let r_type_of_native' ?(allow_charsxp = false) ty =
+  let content = native_arrows ty in
   if Ty.is_empty content then Error Empty_native_type
   else if not (Ty.leq content Arrow.any) then Error Not_a_function
+  else if not allow_charsxp && charsxp_positions ty <> [] then Error Charsxp_only
   else
     let arrows =
       Arrow.dnf content
-      |> List.map (List.map (fun (dom, codom) -> (arg_of_tuple dom, codom)))
+      (* An intersection left with no arrow would be [arrow], any function:
+         it goes, as the arrows it had. *)
+      |> List.filter_map (fun arrows ->
+        match List.filter (fun a -> allow_charsxp || not (charsxp_arrow a)) arrows with
+        | [] -> None
+        | arrows -> Some arrows)
+      |> List.map (List.map (fun (dom, codom) -> (arg_of_tuple dom, r_result_of_c codom)))
       |> Arrow.of_dnf
     in
     if Ty.is_empty arrows then Error Empty_after_conversion
     else Ok (Rstt.Attr.mk_content arrows)
 
-let r_type_of_native ty = Result.to_option (r_type_of_native' ty)
+let r_type_of_native ?allow_charsxp ty = Result.to_option (r_type_of_native' ?allow_charsxp ty)
 
 let is_fun_ty ty = Ty.leq ty fun_ty && not (Ty.is_empty ty)
 

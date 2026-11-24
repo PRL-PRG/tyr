@@ -15,8 +15,8 @@ vec_len: ([null] -> 0L<> with {  }) & ([any_sexp] -> ^INT1<> with {  }) & ([(ext
 F_count: list(double*, int*, int*)
 
 F_pkg_len: ((x1: (externalptr | vec1 | (empty -> any)) | sym) ->
-           1L<> with {  }) & ((x1: any_sexp) -> ^INT1<> with {  }) &
-           ((x1: null) -> 0L<> with {  })
+           1L<> with {  }) & ((x1: any) -> ^INT1<> with {  }) & ((x1: null)
+           -> 0L<> with {  })
 
 F_scale: list(double*, int* (INTSXP), double*, int* (LGLSXP))
 
@@ -41,5 +41,5 @@ count_lgl: ((x: null | vec) -> LGL1<>)<>
 dist: (((x: null | vec) -> DBL<>) & ((x: vec1) -> DBL1<>))<>
 
 len: (((x: (externalptr | vec1 | (empty -> any)) | sym) -> 1L<> with {  }) &
- ((x: any_sexp) -> ^INT1<> with {  }) & ((x: null) -> 0L<> with {  }))<>
+ ((x: any) -> ^INT1<> with {  }) & ((x: null) -> 0L<> with {  }))<>
 
