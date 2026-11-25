@@ -1290,6 +1290,45 @@ let run opts root =
       let ctx =
         List.fold_left (fun ctx f -> Driver.declare_overloads ctx (f.prog, f.extras))
           Driver.initial_ctx (prelude_files @ files) in
+      (* Then the S3 methods of the package (cf. [S3]): the generics they
+         implement (the package's own, or those of R's packages the prelude
+         does not declare), and a class-overload per method. A declaration
+         Rsem refuses (e.g. a class some type already mentions) is reported
+         and skipped. *)
+      let ctx =
+        let progs = List.map (fun f -> f.prog) files in
+        let methods, generics, skipped =
+          S3.methods ~root ~prelude:(S3.prelude_generics prelude) progs in
+        let declare what f ctx =
+          try Ok (f ctx) with Failure msg | Invalid_argument msg -> Error (what ^ ": " ^ msg) in
+        let ctx, failed =
+          generics |> List.fold_left (fun (ctx, failed) (ns, g) ->
+            match declare g (fun ctx -> Driver.add_method ctx ns g None) ctx with
+            | Ok ctx -> ctx, failed
+            | Error e -> ctx, StrMap.add g e failed) (ctx, StrMap.empty) in
+        let ctx = methods |> List.fold_left (fun ctx (m : S3.t) ->
+          let (ns, g) = m.generic in
+          let status, ctx =
+            match StrMap.find_opt g failed with
+            | Some e -> e, ctx
+            (* [default] is not a class: Rsem adds the default method [g.default]
+               to the generic [g] once declared (cf. [MetaEnv.generic_of_default]). *)
+            | None when m.cls = "default" -> "default method", ctx
+            | None ->
+              match declare m.fn (fun ctx -> Driver.add_class ctx ns g m.cls) ctx with
+              | Ok ctx -> "declared", ctx
+              | Error e -> e, ctx in
+          emit rep "s3_method"
+            [ ("generic", R.S g) ; ("class", R.S m.cls) ; ("function", R.S m.fn) ;
+              ("registered", R.B m.registered) ; ("status", R.S status) ] ;
+          if status = "declared" then bump rep "n_s3_declared" ;
+          ctx) ctx in
+        skipped |> List.iter (fun (((ns, g), cls, fn), reason) ->
+          emit rep "s3_method"
+            [ ("generic", R.S (match ns with Some ns -> ns ^ "::" ^ g | None -> g)) ;
+              ("class", R.S cls) ; ("function", R.S fn) ; ("registered", R.B true) ;
+              ("status", R.S ("skipped: " ^ reason)) ]) ;
+        ctx in
       (try MetaEnv.declare_classes ctx.Driver.tenv
        with e -> Format.printf "tyr: declaring the classes: %s@.@." (Printexc.to_string e)) ;
       ignore (R_c_typing.Defs.parsed_types_penv ()) ;

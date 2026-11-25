@@ -23,3 +23,18 @@
     (echo "|prompt}\n\nlet annotation_guide = {prompt|")
     (cat prompts/annotation-guide.md)
     (echo "|prompt}\n")))))
+
+; The functions that look like S3 methods but are not (see S3), from R's
+; tools:::nonS3methods: data/non_s3_methods.txt, which data/non_s3_methods.R
+; regenerates, embedded as a string.
+
+(rule
+ (target non_s3_methods_data.ml)
+ (deps data/non_s3_methods.txt)
+ (action
+  (with-stdout-to
+   %{target}
+   (progn
+    (echo "let text = {names|")
+    (cat data/non_s3_methods.txt)
+    (echo "|names}\n")))))
