@@ -24,21 +24,37 @@ dist: list(double*, int*)
 
 
 ===== packages/fortran/R/fortran.R =====
-scale: (((x: null | vec, a: null | vec) -> DBL<>) & ((x: vec1, a: null | vec) ->
- DBL1<>))<>
+scale: (((x: <@as.double, ~@length, ...>, a: <@as.double, ...>) |
+ (x: <@as.double, ~@length, ...>, a: null | vec<~@as.double, ...>) |
+ (x: <@length, @as.double, ...>, a: <@as.double, ...>) |
+ (x: <@length, @as.double, ...>, a: null | vec<~@as.double, ...>) -> DBL) &
+ ((x: vec1<@length, ~@as.double, ...>, a: <@as.double, ...>) |
+ (x: vec1<@length, ~@as.double, ...>, a: null | vec<~@as.double, ...>) |
+ (x: vec1<~@length, ~@as.double, ...>, a: <@as.double, ...>) |
+ (x: vec1<~@length, ~@as.double, ...>, a: null | vec<~@as.double, ...>) ->
+ DBL1<>) & ((x: vec<@length, ~@as.double, ...>, a: <@as.double, ...>) |
+ (x: vec<@length, ~@as.double, ...>, a: null | vec<~@as.double, ...>) |
+ (x: null | vec<~@length, ~@as.double, ...>, a: <@as.double, ...>) | (x: null
+ | vec<~@length, ~@as.double, ...>, a: null | vec<~@as.double, ...>) ->
+ DBL<>))<>
 
-scaled_ok: ((x: null | vec) -> LGL1<>)<>
+scaled_ok: ((x: <@as.double, ~@length, ...>) | (x: null |
+ vec<~@length, ~@as.double, ...>) -> LGL1<>)<>
 
 wrong_flag: Untypeable: untypeable application of .Fortran.F_scale[4]
 Line 10, characters 2-56
 argument: @(0L<>)
 failing call: .Fortran.F_scale[4](0L)
 
-count: ((x: null | vec) -> INT1<>)<>
+count: ((x: <@as.double, ~@length, ...>) | (x: <@length, @as.double, ...>) |
+ (x: vec<@length, ~@as.double, ...>) | (x: null |
+ vec<~@length, ~@as.double, ...>) -> INT1<>)<>
 
-count_lgl: ((x: null | vec) -> LGL1<>)<>
+count_lgl: ((x: <@as.double, ...>) | (x: null | vec<~@as.double, ...>) -> LGL1<>)<>
 
-dist: (((x: null | vec) -> DBL<>) & ((x: vec1) -> DBL1<>))<>
+dist: (((x: <@as.double, ~@length, ...>) -> DBL) & ((x: null |
+ vec<~@length, ~@as.double, ...>) -> DBL<>) &
+ ((x: vec1<~@length, ~@as.double, ...>) -> DBL1<>))<>
 
 len: (((x: (externalptr | vec1 | (empty -> any)) | sym) -> 1L<> with {  }) &
  ((x: any) -> ^INT1<> with {  }) & ((x: null) -> 0L<> with {  }))<>

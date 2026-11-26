@@ -32,11 +32,13 @@ uses_dot_global: (() -> CHR1)<>
 
 uses_dot_machine: (() -> DBL1)<>
 
-powered: ∀`a. (((x: dbl1<. | `a>) -> DBL1<. | `a>) & ((x: dbl<. | `a> | null) ->
- DBL<. | `a>))<>
+powered: ∀`a. (((x: <@"^", ...>) -> empty) & ((x: dbl1<~@"^", . | `a>) ->
+ DBL1<~@"^", . | `a>) & ((x: dbl<~@"^", . | `a> | null) ->
+ DBL<~@"^", . | `a>))<>
 
-structured: ∀'a,'b. (((x: any) -> any) & ((x: v('b)) -> v('b)) & ((x: { 'a }) ->
- { 'a }))<>
+structured: ∀'a,'b,'c,'d. (((x: any) -> any) & ((x: v('b)) -> v('b)<foo>) & ((x: v('d))
+ -> v('d)<foo>) & ((x: { 'a }) -> { 'a }<foo>) & ((x: { 'c }) ->
+ { 'c }<foo>))<>
 
 dot_labelled: (.Data: dbl, .f: vec) -> dbl
 
@@ -116,7 +118,7 @@ unbound_after_call: Untypeable: unbound variable
 Line 144, characters 52-64
 name: undefined_fn
 
-bound_after_call: ((x: vec) -> INT1<>)<>
+bound_after_call: (((x: <@nchar, ...>) -> DBL1 | INT1) & ((x: vec<~@nchar, ...>) -> INT1<>))<>
 
 defined_later: ∀'a. ((x: 'a) -> 'a)<>
 
@@ -140,15 +142,12 @@ Line 164, characters 57-73
 argument: @({ 1.<> }<>)
 failing call: base::toupper(list())
 
-blame_arity: Untypeable: untypeable application of base::nchar
-Line 165, characters 46-63
-argument: @(vec & 'x, vec & 'x, vec & 'x, vec & 'x)
-failing call: base::nchar(as.raw(0), as.raw(0), as.raw(0), as.raw(0))
+blame_arity: ((x: <@nchar, ...>) -> INT)<>
 
 cb_ty: Untypeable: untypeable coercion
 Line 176, characters 9-26
 expected: (a: dbl1) --> dbl1
-given: ((a: 'a & (((DBL | dbl & v('I1244))<~@"+", . | `I121> | dbl1<~@"+", . | `I121>) | null)) --> (INT | (DBL | (DBL | INT) & v('I1244)))<~@"+", . | `I121>) & ((a: <@"+", ...> & 'a) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: dbl1<~@"+", . | `I121> & 'a) --> DBL1<~@"+", . | `I121>)
+given: ((a: 'a & (((DBL | dbl & v('I1258))<~@"+", . | `I121> | dbl1<~@"+", . | `I121>) | null)) --> (INT | (DBL | (DBL | INT) & v('I1258)))<~@"+", . | `I121>) & ((a: <@"+", ...> & 'a) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: dbl1<~@"+", . | `I121> & 'a) --> DBL1<~@"+", . | `I121>)
 expression may be: <fun>
 
 cb_sig: Untypeable: untypeable coercion

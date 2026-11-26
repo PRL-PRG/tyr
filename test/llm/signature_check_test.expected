@@ -25,7 +25,7 @@ inferred: untypeable (unbound variable)
 (n: dbl1) -> dbl1
   rejected: untypeable application of fact
     argument: @((DBL | INT)<Date> | (DBL | INT)<POSIXt, POSIXct> | (DBL | INT)<difftime> | DBL1<~@"-", ...> | LGL<>)
-    failing call: fact(structure(NA_integer_, class = c("POSIXt", "POSIXct")))
+    failing call: fact(structure(NA_integer_, class = "difftime"))
 
 ===== first
 inferred: ∀'a,'b. (((x: <@"[[", ...>) -> any) & ((x: v('b)<~@"[[", ...>) -> v1('b)<>) & ((x: { 'a }<~@"[[", ...>) -> 'a))<>
@@ -63,7 +63,7 @@ inferred: ∀'a,'b. (((flag: any, a: 'b, b: 'a) -> 'a | 'b) & ((flag: ff, a: 'b,
   accepted: ∀'a. (flag: lgl1, a: 'a, b: 'a) -> 'a
 
 ===== count_na
-inferred: ((v: any) -> INT1<>)<>
+inferred: ((v: <@is.na, ...>) | (v: ~<@is.na, ...>) -> INT1<>)<>
 (v: any) -> int1
   accepted: (v: any) -> int1  [any: v]
 (v: vec) -> INT1
@@ -100,7 +100,7 @@ inferred: (((x: null) -> "none"<>) & ((x: vec1) -> CHR1<>) & ((x: ~null) -> CHR<
   accepted: (x: null | vec) -> CHR
 
 ===== field_or
-inferred: ∀'a. (((s: env) -> any) & ((s: { a: 'a \ null, any }) -> 'a) & ((s: { a: null & 'a, any }) -> "none"<>))<>
+inferred: ∀'a. (((s: <@"$", ...>) -> empty) & ((s: env<~@"$", ...>) -> any) & ((s: { a: 'a \ null, any }<~@"$", ...>) -> 'a) & ((s: { a: null & 'a, any }<~@"$", ...>) -> "none"<>))<>
 (s: { a: CHR1 | null }) -> CHR1
   accepted: (s: { a: CHR1 | null }) -> CHR1
 (s: { a: CHR1? }) -> CHR1

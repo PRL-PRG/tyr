@@ -12,19 +12,28 @@ _: null
 
 re_match: Untypeable: untypeable application of base::regexpr
 Line 46, characters 11-51
-argument: @(CHR & 'pattern, CHR<>, perl: tt<>, ...: ('_ell, empty? | `_ell))
-failing call: base::regexpr(NA_character_, NA_character_, perl = TRUE)
+argument: @((CHR & <@is.na, ...> & <@length, ...>) & 'pattern, CHR, perl: tt<>, ...: ('_ell, empty? | `_ell))
+failing call: base::regexpr(structure(NA_character_,
+                              class = c("<class with a method for is.na>", "<class with a method for length>")),
+                            NA_character_,
+                            perl = TRUE)
 
-re_match_all1: (((match: dbl<~factor, ...> with { match.length: dbl<~@"-", ...> |
- null, capture.start: null, capture.length: any, capture.names: null |
- vec, any }, text: vec) -> CHR<> with { dim: INT, dimnames: list?, any }) &
- ((match: env with { capture.start: dbl<~@"[", ...>, capture.length: dbl<~@"[", ...>, any }, text: vec)
- -> any) &
- ((match: list<factor, ...> with { match.length: any, capture.start: any, capture.length: any, capture.names: any, any }, text: any)
- -> empty))<>
+re_match_all1: (((match: <@as.vector, ...> with { match.length: any, capture.start: any, capture.length: any, capture.names: any, any }, text: any)
+ | (match: env<@as.vector, ...>, text: any) |
+ (match: list<factor, ~@as.vector, ...> with { match.length: any, capture.start: any, capture.length: any, capture.names: any, any }, text: any)
+ -> empty) &
+ ((match: dbl<~factor, ~@as.vector, ...> with { match.length: dbl<~@"-", ...>
+ | null, capture.start: null, capture.length: any, capture.names: null |
+ vec<~@length, ...>, any }, text: vec) ->
+ CHR<> with { dim: INT, dimnames: list?, any }) &
+ ((match: env<~@as.vector, ...> with { capture.start: dbl<~@"[", ...>, capture.length: dbl<~@"[", ...>, any }, text: vec)
+ -> any))<>
 
 re_match_all: Untypeable: untypeable application of base::gregexpr
 Line 103, characters 11-52
-argument: @(CHR & 'pattern, CHR<>, perl: tt<>, ...: ('_ell, empty? | `_ell))
-failing call: base::gregexpr(NA_character_, NA_character_, perl = TRUE)
+argument: @((CHR & <@is.na, ...> & <@length, ...>) & 'pattern, CHR, perl: tt<>, ...: ('_ell, empty? | `_ell))
+failing call: base::gregexpr(structure(NA_character_,
+                               class = c("<class with a method for is.na>", "<class with a method for length>")),
+                             NA_character_,
+                             perl = TRUE)
 

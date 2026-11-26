@@ -24,33 +24,32 @@ C_with_unit: (x1: any, x2: 'I72 & (<...> | null | sym)) ->
 
 
 ===== packages/mixpkg/R/z_helpers.R =====
-format_value: ((x: dbl) -> CHR1<>)<>
+format_value: (((x: <@round, ...>) -> empty) & ((x: dbl<~@round, ...>) -> CHR1<>))<>
 
-bad_total: Untypeable: untypeable application of base::+
-Line 5, characters 25-41
-argument: @(dbl1<>, "units"<>)
-failing call: base::+(as.raw(0), "units")
+bad_total: ((x: <@sum, ...>) -> empty)<>
 
-report: Untypeable: unbound variable
-Line 7, characters 38-47
-name: bad_total
+report: ((x: <@sum, ...>) -> empty)<>
 
 
 ===== packages/mixpkg/R/generics.R =====
-describe: ((x: any, ...: any) -> any)<>
+describe: ((x: ~<@describe, ...>, ...: any) -> any)<>
 
 describe.measure: (((x: dbl with { unit: any, any }, ...: any) -> CHR<>) &
  ((x: dbl with { unit: vec1, any }, ...: any) -> CHR1<>))<>
 
-describe.default: ((x: dbl, ...: any) -> CHR1<>)<>
+describe.default: (((x: <@round, ...>, ...: any) -> empty) & ((x: dbl<~@round, ...> |
+ <@round, ...>, ...: any) -> CHR1<>))<>
 
 
 ===== packages/mixpkg/R/natives.R =====
-scale_by: (((x: null | vec, k: any?) -> DBL<> with {  }) & ((x: vec1, k: any?) ->
- DBL1<> with {  }))<>
+scale_by: (((x: <@as.double, ...>, k: any?) | (x: null |
+ vec<~@as.double, ...>, k: any?) -> DBL<> with {  }) &
+ ((x: vec1<~@as.double, ...>, k: any?) -> DBL1<> with {  }))<>
 
-measure: ∀'a. ((x: null | vec, unit: ('a & (<...> | null | sym))?) ->
- <measure> with { unit: <...> | any_sexp & 'a, any })<>
+measure: ∀'a. ((x: null | (vec<~@as.double, ...> | <@as.double, ...>), unit: ('a &
+ (<...> | null | sym))?) -> <measure> with { unit: <...> | any_sexp &
+ 'a, any })<>
 
-count_missing: ((x: null | vec) -> INT1<> with {  })<>
+count_missing: ((x: <@as.double, ...>) | (x: null | vec<~@as.double, ...>) ->
+ INT1<> with {  })<>
 
