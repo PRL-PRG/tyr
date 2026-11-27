@@ -147,7 +147,7 @@ blame_arity: ((x: <@nchar, ...>) -> INT)<>
 cb_ty: Untypeable: untypeable coercion
 Line 176, characters 9-26
 expected: (a: dbl1) --> dbl1
-given: ((a: 'a & (((DBL | dbl & v('I1268))<~@"+", . | `I127> | dbl1<~@"+", . | `I127>) | null)) --> (INT | (DBL | (DBL | INT) & v('I1268)))<~@"+", . | `I127>) & ((a: <@"+", ...> & 'a) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: dbl1<~@"+", . | `I127> & 'a) --> DBL1<~@"+", . | `I127>)
+given: ((a: 'a & (((DBL | dbl & v('I1264))<~@"+", . | `I127> | dbl1<~@"+", . | `I127>) | null)) --> (INT | (DBL | (DBL | INT) & v('I1264)))<~@"+", . | `I127>) & ((a: <@"+", ...> & 'a) --> (DBL | INT)<difftime> | LGL<> | dbl<Date, ...> | <POSIXt, ...>) & ((a: dbl1<~@"+", . | `I127> & 'a) --> DBL1<~@"+", . | `I127>)
 expression may be: <fun>
 
 cb_sig: Untypeable: untypeable coercion
